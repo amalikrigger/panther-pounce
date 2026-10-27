@@ -1,40 +1,129 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0">
-<title>Panther Pounce</title>
-<script type="text/javascript" src="cocos2d.js"></script>
-<link rel="stylesheet" type="text/css" href="style.css" />
+  <meta charset="utf-8">
+  <!-- viewport-fit=cover lets the game use the whole screen on phones with a notch. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Panther Pounce</title>
+  <meta name="description" content="Panther Pounce: a Halloween slingshot game for the GHCDS Boo Bash.">
+  <meta name="theme-color" content="#12051f">
+
+  <!-- "Add to Home Screen" support. iPhones don't allow the fullscreen
+       button, so this is how the game goes full screen there. -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Panther Pounce">
+  <link rel="icon" href="data:,">
+
+  <!-- Fonts are bundled so the game works with no internet. -->
+  <link rel="preload" href="assets/fonts/creepster-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/fredoka-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="src/styles.css">
+
+  <!-- All paths are relative (no leading "/"), so the game works from any
+       folder on any website, like thinkinbits.site/panther-pounce/. -->
+  <script type="module" src="src/main.js"></script>
 </head>
 <body>
-<div id="main_div">
-  <div id="frontpage_div">
-    <div id="play_button">LOADING...</div>
+  <canvas id="game" aria-label="Game area: drag back to aim the panther, let go to launch"></canvas>
+
+  <div id="ui">
+    <!-- In-game heads-up display. -->
+    <header class="hud" id="hud" hidden>
+      <div class="hud-left">
+        <span class="hud-level" id="hud-level"></span>
+        <span class="hud-score" id="hud-score" aria-live="off">0</span>
+      </div>
+      <div class="hud-panthers" id="hud-panthers" role="img"></div>
+      <button class="icon-button" data-action="pause" aria-label="Pause">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+      </button>
+    </header>
+
+    <section class="screen active" id="screen-loading" aria-label="Loading">
+      <p class="loading-text">Waking the panther…</p>
+    </section>
+
+    <section class="screen" id="screen-title" aria-label="Title">
+      <div class="panel title-panel">
+        <h1 class="logo">
+          <span class="logo-top">Panther</span>
+          <span class="logo-bottom">Pounce</span>
+        </h1>
+        <p class="tagline">Boo Bash 2026 · <span class="gold">#PantherPride</span></p>
+        <div class="menu">
+          <button class="button button-primary" data-action="show-levels">
+            <span class="button-title">Play</span>
+            <span class="button-sub">Knock down the haunted towers!</span>
+          </button>
+        </div>
+        <p class="hint" id="ios-hint" hidden>Tip: tap Share → “Add to Home Screen” to play full screen.</p>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-levels" aria-label="Choose a level">
+      <div class="panel levels-panel">
+        <h2 class="screen-title">Choose a level</h2>
+        <div class="level-grid" id="level-grid"></div>
+        <div class="menu menu-row">
+          <button class="button button-secondary" data-action="menu"><span class="button-title">Back</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-pause" aria-label="Paused">
+      <div class="panel">
+        <h2 class="screen-title">Paused</h2>
+        <div class="menu">
+          <button class="button button-primary" data-action="resume"><span class="button-title">Resume</span></button>
+          <button class="button button-secondary" data-action="retry"><span class="button-title">Restart level</span></button>
+          <button class="button button-secondary" data-action="menu"><span class="button-title">Quit to menu</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-result" aria-label="Results">
+      <div class="panel results-panel">
+        <h2 class="screen-title" id="result-title">Level Cleared!</h2>
+        <p class="results-reason" id="result-reason"></p>
+        <div class="result-stars" id="result-stars"></div>
+        <div class="results-score">
+          <span class="results-label">Score</span>
+          <span class="results-value" id="result-score">0</span>
+          <span class="new-best" id="result-new-best" hidden>New best!</span>
+        </div>
+        <dl class="stats" id="result-stats"></dl>
+        <div class="menu">
+          <button class="button button-primary" id="result-next" data-action="next"><span class="button-title">Next level</span></button>
+          <button class="button button-secondary" id="result-retry" data-action="retry"><span class="button-title">Play again</span></button>
+          <button class="button button-secondary" data-action="show-levels"><span class="button-title">Levels</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Always-visible corner buttons. -->
+    <div class="corner-buttons">
+      <button class="icon-button" id="mute-button" aria-label="Mute sound" aria-pressed="false">
+        <svg class="icon-sound-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg class="icon-sound-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-button" id="fullscreen-button" aria-label="Full screen" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+    </div>
   </div>
 
-  <div id="level_select_div"></div>
-
-  <div id="game_div">
-    <canvas id="viewport" width="2400px" height="600px"></canvas>
-    <div id="score_div"></div>
-    <div id="smoke_div"></div>
-    <div id="win_popup">
-      <div id="win_popup_inner" class="popup_inner"></div>
-      <div id="button_level_select" onclick="show_level_select();"></div>
-      <div id="button_game_init" onclick="game.init();"></div>
-      <div id="button_level_up" onclick="level_up();"></div>
-    </div>
-
-    <div id="lose_popup">
-      <div id="lose_popup_inner" class="popup_inner"></div>
-      <div id="button_level_select_2" onclick="show_level_select();"></div>
-      <div id="button_game_init_2" onclick="game.init();"></div>
-    </div>
+  <!-- Shown on phones and tablets held upright. The game is played sideways. -->
+  <div id="rotate-prompt" aria-live="polite">
+    <svg class="rotate-icon" viewBox="0 0 120 120" aria-hidden="true">
+      <rect class="rotate-phone" x="38" y="18" width="44" height="84" rx="8"/>
+      <path class="rotate-arrow" d="M96 44a40 40 0 0 1 0 32M92 74l4 6 6-4"/>
+    </svg>
+    <p class="rotate-title">Turn your device sideways</p>
+    <p class="rotate-sub">Panther Pounce is played in landscape.</p>
   </div>
 
-  <div id="preload_div" style="position:absolute;top:120px;left:0px;width:300px;height:250px;z-index:2;"></div>
-</div>
-
-<div id="overlay"></div>
+  <noscript><p class="noscript">Panther Pounce needs JavaScript turned on.</p></noscript>
 </body>
 </html>

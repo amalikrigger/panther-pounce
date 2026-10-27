@@ -1,0 +1,536 @@
+/* =============================================================================
+   Panther Pounce styles
+   The game itself is drawn on the <canvas>. These styles are for the menus
+   and the score bar that sit on top of it.
+   Colors match THEME in config.js (and the other Panther Arcade games).
+   If you change one, change both.
+   ============================================================================= */
+
+@font-face {
+  font-family: 'Creepster';
+  src: url('../assets/fonts/creepster-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Fredoka';
+  src: url('../assets/fonts/fredoka-latin-variable.woff2') format('woff2');
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+:root {
+  --gold: #F6BC1B;
+  --gold-light: #ffe07a;
+  --maroon: #701114;
+  --maroon-dark: #3d0709;
+  --charcoal: #58595B;
+  --night: #12051f;
+  --purple: #3d1466;
+  --purple-light: #7b3fc4;
+  --pumpkin: #ff7a1a;
+  --danger: #ff2d3d;
+  --text: #fff8e7;
+
+  --display-font: 'Creepster', Impact, fantasy;
+  --ui-font: 'Fredoka', 'Trebuchet MS', system-ui, sans-serif;
+
+  /* Space for phone notches and rounded corners. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--night);
+  color: var(--text);
+  font-family: var(--ui-font);
+  /* Stop the page from scrolling, zooming, selecting text or showing the
+     iOS tap highlight while kids drag the slingshot. */
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  /* 100dvh is the real visible height on phones (not counting the address
+     bar). Older browsers that don't know dvh use 100vh. */
+  height: 100vh;
+  height: 100dvh;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+#game:active { cursor: grabbing; }
+
+/* The UI layer covers the screen but lets drags fall through to the canvas.
+   Only the actual buttons and panels catch taps. */
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+[hidden] { display: none !important; }
+
+.gold { color: var(--gold); }
+
+/* --- Screens ---------------------------------------------------------------- */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(12px + var(--safe-top)) calc(16px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(16px + var(--safe-left));
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.94);
+  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.2, 1.4, 0.4, 1), visibility 0s linear 0.35s;
+}
+
+.screen.active {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.2, 1.4, 0.4, 1), visibility 0s;
+}
+
+/* Darken the game behind menus (but not the title, which shows it off). */
+#screen-levels, #screen-pause, #screen-result {
+  background: radial-gradient(ellipse at center, rgba(18, 5, 31, 0.35), rgba(18, 5, 31, 0.75));
+}
+.screen.active#screen-levels, .screen.active#screen-pause, .screen.active#screen-result { pointer-events: auto; }
+
+.panel {
+  pointer-events: auto;
+  width: min(92vw, 460px);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 20px 22px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(61, 20, 102, 0.88), rgba(18, 5, 31, 0.94));
+  border: 2px solid rgba(246, 188, 27, 0.55);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  text-align: center;
+}
+
+/* The title floats over the scene. */
+.title-panel {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  pointer-events: none;
+  overflow: visible;
+}
+.title-panel .menu { pointer-events: auto; }
+
+.loading-text {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--gold);
+  animation: pulse-fade 1s ease-in-out infinite alternate;
+}
+@keyframes pulse-fade { from { opacity: 0.5; } to { opacity: 1; } }
+
+/* --- Logo ------------------------------------------------------------------- */
+
+.logo {
+  margin: 0 0 6px;
+  font-family: var(--display-font);
+  font-weight: 400;
+  line-height: 0.85;
+  letter-spacing: 0.02em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo-top,
+.logo-bottom {
+  display: block;
+  color: var(--gold);
+  /* Layered shadows: maroon "3D" edge, then a dark drop shadow. */
+  text-shadow:
+    0 2px 0 var(--maroon),
+    0 4px 0 var(--maroon),
+    0 6px 0 var(--maroon-dark),
+    0 10px 24px rgba(0, 0, 0, 0.7),
+    0 0 40px rgba(246, 188, 27, 0.35);
+}
+
+.logo-top { font-size: clamp(48px, 13vmin, 116px); }
+.logo-bottom {
+  font-size: clamp(60px, 17vmin, 148px);
+  color: var(--pumpkin);
+  transform: rotate(-4deg);
+  animation: logo-pounce 2.4s cubic-bezier(0.3, 0, 0.3, 1) infinite;
+}
+
+/* A little crouch-and-pounce hop. */
+@keyframes logo-pounce {
+  0%, 60%, 100% { transform: rotate(-4deg) translateY(0) scale(1, 1); }
+  70% { transform: rotate(-4deg) translateY(4px) scale(1.04, 0.94); }
+  80% { transform: rotate(-6deg) translateY(-14px) scale(0.97, 1.04); }
+  90% { transform: rotate(-3deg) translateY(0) scale(1.02, 0.98); }
+}
+
+.tagline {
+  margin: 8px 0 18px;
+  font-size: clamp(16px, 3vmin, 22px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* --- Buttons ---------------------------------------------------------------- */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.menu-row { margin-top: 14px; }
+
+.button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px; /* big targets for small fingers */
+  padding: 10px 20px;
+  border-radius: 20px;
+  border: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.button:active { transform: translateY(3px) scale(0.98); }
+.button:focus-visible { outline: 4px solid #fff; outline-offset: 3px; }
+
+.button-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.button-sub {
+  font-size: 15px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.button-primary {
+  color: var(--maroon-dark);
+  background: linear-gradient(180deg, var(--gold-light), var(--gold) 55%, #d99a00);
+  box-shadow: 0 6px 0 #9c6a00, 0 10px 24px rgba(246, 188, 27, 0.35);
+}
+.button-primary:active { box-shadow: 0 3px 0 #9c6a00, 0 6px 16px rgba(246, 188, 27, 0.3); }
+
+.button-secondary {
+  color: var(--text);
+  background: linear-gradient(180deg, rgba(123, 63, 196, 0.9), rgba(61, 20, 102, 0.95));
+  box-shadow: 0 6px 0 #22093d, inset 0 0 0 2px rgba(246, 188, 27, 0.5);
+}
+.button-secondary:active { box-shadow: 0 3px 0 #22093d, inset 0 0 0 2px rgba(246, 188, 27, 0.5); }
+
+.icon-button {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  border: 2px solid rgba(246, 188, 27, 0.6);
+  background: rgba(18, 5, 31, 0.65);
+  color: var(--gold);
+}
+.icon-button svg { width: 26px; height: 26px; fill: currentColor; }
+.icon-button:active { transform: scale(0.94); }
+.icon-button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+#mute-button .icon-sound-off { display: none; }
+#mute-button[aria-pressed='true'] .icon-sound-on { display: none; }
+#mute-button[aria-pressed='true'] .icon-sound-off { display: block; }
+
+/* Mute and fullscreen sit top-right, in the sky, so they never cover the
+   structure. During play they slide left to make room for the pause button. */
+.corner-buttons {
+  position: absolute;
+  top: calc(8px + var(--safe-top));
+  right: calc(12px + var(--safe-right));
+  display: flex;
+  gap: 10px;
+  transition: right 0.3s ease;
+}
+.in-game .corner-buttons { right: calc(12px + 52px + 10px + var(--safe-right)); }
+
+.hint {
+  margin: 10px auto 0;
+  max-width: 320px;
+  font-size: 14px;
+  opacity: 0.85;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+
+/* --- HUD -------------------------------------------------------------------- */
+
+.hud {
+  position: absolute;
+  top: calc(8px + var(--safe-top));
+  left: calc(12px + var(--safe-left));
+  right: calc(12px + var(--safe-right));
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+}
+
+.hud .icon-button { justify-self: end; }
+
+.hud-left {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  text-shadow: 0 3px 0 var(--maroon-dark), 0 4px 12px rgba(0, 0, 0, 0.8);
+}
+.hud-level {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+.hud-score {
+  font-size: clamp(28px, 6vmin, 48px);
+  font-weight: 700;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-panthers {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(18, 5, 31, 0.6);
+  border: 2px solid rgba(246, 188, 27, 0.5);
+}
+.paw svg {
+  display: block;
+  width: clamp(24px, 5vmin, 34px);
+  height: clamp(24px, 5vmin, 34px);
+  fill: var(--gold);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6));
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+/* A used panther is a faded outline, not just a different color. */
+.paw.used svg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 1.2;
+  transform: scale(0.8);
+  filter: none;
+}
+
+/* --- Level select ----------------------------------------------------------- */
+
+.levels-panel { width: min(94vw, 720px); }
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.level-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 112px;
+  padding: 10px 6px;
+  border-radius: 18px;
+  border: 2px solid rgba(246, 188, 27, 0.6);
+  background: linear-gradient(180deg, rgba(123, 63, 196, 0.55), rgba(18, 5, 31, 0.8));
+  transition: transform 0.12s ease;
+}
+.level-card:active { transform: scale(0.96); }
+.level-card:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.level-card:disabled { opacity: 0.45; cursor: not-allowed; border-style: dashed; }
+
+.level-number {
+  font-family: var(--display-font);
+  font-size: 38px;
+  line-height: 1;
+  color: var(--gold);
+  text-shadow: 0 3px 0 var(--maroon);
+}
+.level-name { font-size: 14px; font-weight: 600; line-height: 1.15; }
+.lock { width: 32px; height: 32px; fill: rgba(255, 255, 255, 0.7); }
+
+/* Stars: an earned star is filled gold, a missing one is an outline. */
+.star { fill: none; stroke: rgba(255, 255, 255, 0.5); stroke-width: 1.6; stroke-linejoin: round; }
+.star.earned { fill: var(--gold); stroke: var(--maroon); }
+.star-small { width: 20px; height: 20px; }
+.star-big { width: clamp(44px, 11vmin, 64px); height: clamp(44px, 11vmin, 64px); }
+.result-stars .star.earned { animation: star-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+.result-stars .star-big:nth-child(2) { transform: translateY(-10px); }
+
+@keyframes star-pop {
+  from { transform: scale(0) rotate(-60deg); }
+  to { transform: scale(1) rotate(0); }
+}
+.result-stars .star-big:nth-child(2).earned { animation-name: star-pop-middle; }
+@keyframes star-pop-middle {
+  from { transform: translateY(-10px) scale(0) rotate(-60deg); }
+  to { transform: translateY(-10px) scale(1) rotate(0); }
+}
+
+/* --- Pause and results ------------------------------------------------------ */
+
+.screen-title {
+  margin: 0 0 6px;
+  font-family: var(--display-font);
+  font-weight: 400;
+  font-size: clamp(40px, 10vmin, 68px);
+  line-height: 1;
+  color: var(--pumpkin);
+  text-shadow: 0 3px 0 var(--maroon), 0 6px 18px rgba(0, 0, 0, 0.7);
+}
+
+.results-reason {
+  margin: 0 0 8px;
+  font-size: 17px;
+  opacity: 0.9;
+}
+
+.result-stars { display: flex; justify-content: center; gap: 6px; min-height: 8px; }
+
+.results-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 6px 0 10px;
+}
+.results-label {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0.85;
+}
+.results-value {
+  font-size: clamp(44px, 11vmin, 76px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--gold);
+  text-shadow: 0 4px 0 var(--maroon), 0 8px 20px rgba(0, 0, 0, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+.new-best {
+  margin-top: 8px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--pumpkin);
+  color: var(--maroon-dark);
+  font-weight: 700;
+  animation: pulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes pulse { to { transform: scale(1.08); } }
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 0 0 14px;
+}
+.stats div { display: flex; flex-direction: column; }
+.stats dt { font-size: 13px; opacity: 0.8; }
+.stats dd { margin: 0; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* On short landscape phones, lay the result buttons side by side. */
+@media (max-height: 500px) {
+  .results-panel .menu, .screen#screen-pause .menu { flex-direction: row; max-width: none; }
+  .results-panel .menu .button, .screen#screen-pause .menu .button { flex: 1; min-height: 52px; padding: 8px 10px; }
+  .button-title { font-size: 20px; }
+  .panel { padding: 14px 18px; }
+  .results-panel { width: min(94vw, 600px); }
+  .levels-panel { width: min(96vw, 820px); }
+  .level-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+  .level-card { min-height: 92px; padding: 6px; }
+}
+
+/* --- Rotate prompt ------------------------------------------------------------ */
+
+#rotate-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 35%, #3d1466, var(--night) 70%);
+}
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate-prompt { display: flex; }
+}
+.rotate-icon { width: 140px; height: 140px; }
+.rotate-phone {
+  fill: rgba(18, 5, 31, 0.8);
+  stroke: var(--gold);
+  stroke-width: 5;
+  transform-origin: 60px 60px;
+  animation: rotate-phone 2.4s ease-in-out infinite;
+}
+.rotate-arrow { fill: none; stroke: var(--pumpkin); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+@keyframes rotate-phone {
+  0%, 25% { transform: rotate(0); }
+  55%, 85% { transform: rotate(-90deg); }
+  100% { transform: rotate(0); }
+}
+.rotate-title {
+  margin: 18px 0 6px;
+  font-family: var(--display-font);
+  font-size: 40px;
+  line-height: 1.05;
+  color: var(--gold);
+  text-shadow: 0 3px 0 var(--maroon);
+}
+.rotate-sub { margin: 0; font-size: 17px; opacity: 0.9; }
+
+.noscript { position: fixed; inset: 0; display: grid; place-items: center; font-size: 20px; }
+
+/* Calmer motion for people who ask their device for it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01s !important; animation-iteration-count: 1 !important; transition-duration: 0.01s !important; }
+}
