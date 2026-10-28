@@ -34,6 +34,10 @@ it at the table. (It works the same way as the Panther Slash booth.)
 - Each $2 play is one **Boo Bash Challenge**: 3 levels in a row, no retries.
   Scores add up across the levels. A run takes about 2 to 3 minutes.
 - Players **drag back anywhere on the screen** to aim and let go to launch.
+  **Tapping again while the panther flies makes it POUNCE** (a burst of
+  speed, once per shot). The game shows this hint on the first few shots, but
+  telling new players helps. Keyboard players: arrow keys aim, Space launches
+  and pounces.
 - If the player reaches a prize score, the **prize screen** shows:
   - the tier (Bronze, Silver, Gold or Legendary Panther), the score, the run
     time, and a **clock that ticks every second**
@@ -53,7 +57,7 @@ it at the table. (It works the same way as the Panther Slash booth.)
   device, with codes and claim times.
 
 Default prize scores (change them in staff mode if prizes are going too fast
-or too slow): Bronze 15,000 · Silver 25,000 · Gold 35,000 · Legendary 45,000.
+or too slow): Bronze 15,000 · Silver 25,000 · Gold 35,000 · Legendary 48,000.
 
 ## Problems
 

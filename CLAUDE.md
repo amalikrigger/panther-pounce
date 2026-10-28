@@ -68,6 +68,11 @@ harvest moon and pumpkin orange.
   initials, staff mode and kiosk use the same scheme as Panther Slash. The
   per-device booth settings live in `src/storage/settings.js`. Booth runbook:
   `docs/booth-guide.md`.
+- Offline: `sw.js` caches every file, stale-while-revalidate. It registers only
+  on https or with `?sw`; plain-http dev servers unregister it, so edits always
+  show on refresh. Bump `CACHE` in `sw.js` when its logic changes.
+- Pounce (tap or Space mid-flight), keyboard aiming, and automatic low-power
+  mode (`src/render/quality.js`) are in `src/main.js`.
 
 ## Verifying changes
 

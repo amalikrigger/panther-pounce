@@ -142,10 +142,11 @@ at 60 fps.
   once, win or lose, and the scores add up. There are no retries, and a
   6-second auto-continue keeps the line moving.
 - **Prize tiers** on the run total: Bronze 15k, Silver 25k, Gold 35k,
-  Legendary 45k. These came from simulating 80 runs with the real physics:
-  - wild flinging: median 18k
-  - rough aiming: median 32k, 90th percentile 41k
-  - best run: 48k
+  Legendary 48k. These came from simulating runs with the real physics,
+  including pounce use:
+  - wild flinging: median 26k
+  - rough aiming: median 31k, 90th percentile 43k
+  - best run: 52k
 
   Staff can retune them on the night.
 - **Prize screen:**
@@ -228,10 +229,27 @@ confirmed, in-browser level editor.
   - The prize screen and initials fit without scrolling at 667×375.
   - The staff form scrolls by touch.
   - `node --test`: 29/29.
-  - **Waiting on Amali:** checkpoint review and commit approval.
-- [ ] Phase 3: next
-  - service worker for offline (Chromebooks and iPads)
-  - juice and sound polish
-  - a pounce-dash ability
-  - more levels
-  - low-end tuning and an accessibility pass
+  - Committed (approved Oct 27).
+- [x] Phase 3: built Oct 28 on `pounce-rebuild`.
+  - Offline service worker, manifest and icons.
+  - Pounce ability with a roar, a trail and a first-shot hint.
+  - Keyboard aiming.
+  - Automatic low-power mode.
+  - Level 6, Bone Bridge (Free Play).
+  - Legendary raised to 48k after re-simulating with pounce.
+
+  Verified:
+  - Offline: 41 files cached; the title, fonts and a challenge load and play
+    with the network off.
+  - Pounce: a tap raises speed 17 → 29, once per shot.
+  - Keyboard aim, launch and pounce.
+  - The low-power switch triggers under a 40× throttle and not at normal speed.
+  - The booth flow passes at 844×390 and 1024×768 touch, and Free Play at
+    1280×800.
+  - `node --test`: 31/31.
+  - Approved and committed Oct 28 (not pushed).
+- [ ] Event prep (Thu Oct 29):
+  - decide hosting for the Chromebooks and iPads (deploy approval) or use a
+    laptop hotspot
+  - rehearse on the real booth devices
+  - set staff settings on each device

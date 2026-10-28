@@ -34,6 +34,8 @@ part of this project's own code and carry no third-party license.
 | Night sky, harvest moon, bats, spiderweb, hills, and the graveyard / haunted house / pumpkin patch / clock tower silhouettes | `src/render/background.js` |
 | Splinters, smoke puffs, sparks, shockwaves, floating scores | `src/render/effects.js` |
 | Paw, star, lock and button icons | inline SVG in `index.html`, `src/main.js` and `src/ui/screens.js` |
+| App icons `icons/icon-*.png` | rendered from the panther drawing in `src/render/art.js`, on a moon and sky drawn in code |
+| Prize medal | the panther drawing, painted at runtime in `src/ui/prize.js` |
 
 The "campus" setting is a made-up clock tower, not a real school building.
 

@@ -34,9 +34,13 @@ address instead of `localhost`, for example `http://192.168.1.20:8000`.
 2. **Let go** to launch.
 3. Clear every enemy before you run out of panthers. Unused panthers are
    worth bonus points.
-4. Break blocks for extra points. **Jack-o'-lanterns explode!**
+4. **POUNCE!** Tap again while the panther is flying for a burst of speed
+   (once per shot, before it hits anything).
+5. Break blocks for extra points. **Jack-o'-lanterns explode!**
 
-Works with a mouse, a finger or a pen. Press **P** or **Esc** to pause.
+Works with a mouse, a finger or a pen. **Keyboard:** ← → aim up and down,
+↑ ↓ change the power, **Space** launches (and pounces), **P** or **Esc**
+pauses.
 
 Two ways to play:
 
@@ -49,6 +53,14 @@ Two ways to play:
 
 Running the booth (staff mode, prizes, kiosk mode): see
 [docs/booth-guide.md](docs/booth-guide.md).
+
+## Playing with no internet (offline)
+
+When the game is on a real website (https), `sw.js` (a "service worker")
+saves a copy of every file on the first visit. After that, the game loads and
+plays even with no Wi-Fi. On your own computer (`http://localhost`) this is
+switched off on purpose, so a refresh always shows your latest changes.
+(Add `?sw` to the address to test it locally.)
 
 ## How the code is organized
 
@@ -69,6 +81,8 @@ src/audio/sound.js     sound effects made with code
 src/ui/                menu screens, prize screen, initials, leaderboard, staff mode
 src/storage/           saves progress, scores, prizes and booth settings on this device
 tests/                 automatic checks (run with: node --test)
+sw.js                  offline support (see above)
+manifest.webmanifest   name and icons for "Add to Home Screen"
 vendor/planck-1.5.0/   the physics library (don't edit)
 ```
 

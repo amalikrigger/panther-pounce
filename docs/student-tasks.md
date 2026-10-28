@@ -47,6 +47,9 @@ Pick one, tell the class you're on it, and keep the change small. Read
 - **A new background setting** in `src/render/background.js`, like a swamp or a
   witch's cottage.
 - **Write a test** in `tests/round.test.mjs` for a rule that isn't tested yet.
+- **Tune the pounce** (`POUNCE` in `src/config.js`), or invent a second
+  ability, like a roar that pushes everything nearby (look at `explode()` in
+  `src/physics/world.js` for how pushing works).
 
 ## Always
 
