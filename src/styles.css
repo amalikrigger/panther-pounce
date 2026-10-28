@@ -123,10 +123,10 @@ button {
 }
 
 /* Darken the game behind menus (but not the title, which shows it off). */
-#screen-levels, #screen-pause, #screen-result {
+#screen-levels, #screen-paused, #screen-result {
   background: radial-gradient(ellipse at center, rgba(18, 5, 31, 0.35), rgba(18, 5, 31, 0.75));
 }
-.screen.active#screen-levels, .screen.active#screen-pause, .screen.active#screen-result { pointer-events: auto; }
+.screen.active#screen-levels, .screen.active#screen-paused, .screen.active#screen-result { pointer-events: auto; }
 
 .panel {
   pointer-events: auto;
@@ -477,14 +477,443 @@ button {
 
 /* On short landscape phones, lay the result buttons side by side. */
 @media (max-height: 500px) {
-  .results-panel .menu, .screen#screen-pause .menu { flex-direction: row; max-width: none; }
-  .results-panel .menu .button, .screen#screen-pause .menu .button { flex: 1; min-height: 52px; padding: 8px 10px; }
+  .results-panel .menu, .screen#screen-paused .menu { flex-direction: row; max-width: none; }
+  .results-panel .menu .button, .screen#screen-paused .menu .button { flex: 1; min-height: 52px; padding: 8px 10px; }
   .button-title { font-size: 20px; }
   .panel { padding: 14px 18px; }
   .results-panel { width: min(94vw, 600px); }
   .levels-panel { width: min(96vw, 820px); }
   .level-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
   .level-card { min-height: 92px; padding: 6px; }
+}
+
+/* --- Title extras, extra buttons, messages ---------------------------------------- */
+
+.best-line {
+  margin: 14px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+
+.button-tertiary {
+  min-height: 52px;
+  color: var(--gold);
+  background: rgba(18, 5, 31, 0.6);
+  box-shadow: inset 0 0 0 2px rgba(246, 188, 27, 0.45);
+}
+.button-tertiary .button-title { font-size: 20px; }
+
+.button-danger {
+  min-height: 52px;
+  width: 100%;
+  margin-top: 8px;
+  color: #fff;
+  background: linear-gradient(180deg, #c0303c, #7a0f18);
+  box-shadow: 0 4px 0 #4a0a10;
+}
+.button-danger .button-title { font-size: 18px; }
+
+.menu-row { flex-direction: row; }
+.menu-row .button { flex: 1; padding: 12px; }
+.menu-row .button-title { font-size: 21px; white-space: nowrap; }
+
+.next-tier {
+  margin: -4px 0 14px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gold-light);
+}
+
+.form-message {
+  min-height: 1.4em;
+  margin: 8px 0;
+  font-weight: 600;
+  color: #ffb3ba;
+}
+.form-message.ok { color: #b8f5b0; }
+
+/* All the full-screen menus darken the game behind them and catch taps. */
+#screen-run, #screen-prize, #screen-initials, #screen-leaderboard, #screen-pin, #screen-staff {
+  background: radial-gradient(ellipse at center, rgba(18, 5, 31, 0.45), rgba(18, 5, 31, 0.85));
+}
+.screen.active:is(#screen-run, #screen-prize, #screen-initials, #screen-leaderboard, #screen-pin, #screen-staff) { pointer-events: auto; }
+
+/* The staff and PIN screens are tall forms; the corner buttons would cover them. */
+body[data-screen='staff'] .corner-buttons,
+body[data-screen='pin'] .corner-buttons { display: none; }
+
+/* --- Prize screen ------------------------------------------------------------- */
+
+.prize-panel {
+  --tier: var(--gold);
+  border: 4px solid var(--tier);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.4), 0 0 60px color-mix(in srgb, var(--tier) 55%, transparent);
+  /* A moving shimmer around the edge: a live screen moves, a screenshot doesn't. */
+  background:
+    linear-gradient(160deg, rgba(61, 20, 102, 0.94), rgba(18, 5, 31, 0.97)) padding-box,
+    conic-gradient(from var(--shimmer-angle, 0deg), var(--tier), #fff, var(--tier), transparent, var(--tier)) border-box;
+  animation: shimmer 3s linear infinite;
+}
+@property --shimmer-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes shimmer {
+  to { --shimmer-angle: 360deg; }
+}
+
+.prize-kicker {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.prize-medal {
+  width: clamp(96px, 22vmin, 150px);
+  aspect-ratio: 1;
+  margin: 8px auto 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--tier) 45%, transparent), transparent 70%), var(--medal-image) center / 100% no-repeat;
+  background-blend-mode: normal;
+  box-shadow: 0 0 0 5px var(--tier), 0 8px 24px rgba(0, 0, 0, 0.6);
+  animation: medal-spin 4s ease-in-out infinite;
+}
+@keyframes medal-spin {
+  0%, 100% { transform: rotate(-6deg) scale(1); }
+  50% { transform: rotate(6deg) scale(1.05); }
+}
+
+.prize-tier {
+  margin: 0;
+  font-family: var(--display-font);
+  font-weight: 400;
+  font-size: clamp(40px, 10vmin, 64px);
+  line-height: 1;
+  color: var(--tier);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.6), 0 0 24px color-mix(in srgb, var(--tier) 50%, transparent);
+}
+
+.prize-score {
+  margin: 4px 0 12px;
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.prize-verify {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 18px;
+  background: #fff8e7;
+  color: #1a0a1f;
+}
+.prize-verify-row { display: flex; flex-direction: column; }
+.prize-verify-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.prize-verify-value {
+  font-size: clamp(30px, 7vmin, 40px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+.prize-code { color: var(--maroon); }
+
+.prize-clock {
+  grid-column: 1 / -1;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.prize-claim {
+  position: relative;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  padding: 12px;
+  border-radius: 12px;
+  border: 2px dashed var(--maroon);
+  font-weight: 700;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
+}
+.prize-claim-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: rgba(112, 17, 20, 0.25);
+}
+.prize-claim-text { position: relative; }
+.prize-claim.claimed {
+  border-style: solid;
+  background: var(--maroon);
+  color: #fff;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+}
+
+.prize-instructions {
+  margin: 12px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* --- Initials ----------------------------------------------------------------- */
+
+.initials {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 12px 0 4px;
+}
+.initial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.initial-letter {
+  width: 78px;
+  padding: 6px 0;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 3px solid var(--gold);
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--gold);
+}
+.initial-step {
+  width: 78px;
+  height: 56px;
+  border: none;
+  border-radius: 14px;
+  background: var(--purple-light);
+  color: #fff;
+  font-size: 26px;
+}
+.initial-step:active { transform: scale(0.94); }
+.initial-step:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* --- Leaderboard -------------------------------------------------------------- */
+
+.board-panel { width: min(94vw, 480px); }
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+.tab {
+  flex: 1;
+  max-width: 180px;
+  min-height: 44px;
+  border: 2px solid rgba(246, 188, 27, 0.5);
+  border-radius: 999px;
+  background: transparent;
+  font-weight: 700;
+  font-size: 17px;
+}
+.tab[aria-selected='true'] {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--maroon-dark);
+}
+
+.board {
+  list-style: none;
+  margin: 10px 0 14px;
+  padding: 0;
+}
+.board li {
+  display: grid;
+  grid-template-columns: 2.2em 1fr auto 2.2em;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.board li:nth-child(odd) { background: rgba(255, 255, 255, 0.06); }
+.board li.highlight {
+  background: var(--gold);
+  color: var(--maroon-dark);
+  animation: pulse 0.6s ease-in-out 3 alternate;
+}
+.board .rank { opacity: 0.75; text-align: left; }
+.board .who { text-align: left; letter-spacing: 0.12em; }
+/* Tier badge: a letter in a circle, so it's readable without color too. */
+.board .tier-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  font-size: 15px;
+  color: #1a0a1f;
+  background: var(--tier, transparent);
+  box-shadow: inset 0 0 0 2px rgba(26, 10, 31, 0.55);
+}
+.board-empty { margin: 16px 0; font-size: 18px; }
+
+/* --- Staff PIN ---------------------------------------------------------------- */
+
+.screen-title-small { font-size: clamp(36px, 8vmin, 52px); }
+
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  min-height: 26px;
+  margin: 10px 0 0;
+}
+.pin-dots span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+.pin-panel.shake { animation: shake 0.4s ease; }
+@keyframes shake {
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-width: 300px;
+  margin: 0 auto 14px;
+}
+.keypad button {
+  min-height: 60px;
+  border: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 28px;
+  font-weight: 700;
+}
+.keypad button:active { background: rgba(246, 188, 27, 0.5); }
+
+/* --- Staff settings ----------------------------------------------------------- */
+
+.staff-panel {
+  width: min(96vw, 560px);
+  text-align: left;
+}
+.staff-panel .screen-title { text-align: center; }
+
+.staff-form fieldset {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 2px solid rgba(246, 188, 27, 0.35);
+  border-radius: 16px;
+}
+.staff-form legend {
+  padding: 0 6px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.staff-form label {
+  display: block;
+  margin: 8px 0;
+  font-weight: 600;
+}
+.staff-form small { font-weight: 400; opacity: 0.75; }
+.staff-note { margin: 4px 0 0; font-weight: 600; }
+.staff-form input[type='text'],
+.staff-form input[type='number'],
+.staff-form input[type='password'],
+.staff-form input[type='date'],
+.staff-form select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font: inherit;
+  font-size: 18px; /* 16px or more stops iPhones from zooming in */
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: manipulation;
+}
+.staff-form .check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.staff-form input[type='checkbox'] { width: 24px; height: 24px; accent-color: var(--gold); }
+.verify-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.verify-result { min-height: 1.4em; font-weight: 700; font-size: 18px; }
+.prize-log {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.prize-log li { padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.prize-log .claimed { color: #b8f5b0; }
+
+/* The staff form needs to scroll on small screens. */
+.staff-panel { touch-action: pan-y; }
+
+/* --- Short landscape phones: side-by-side layouts so nothing scrolls ------------- */
+
+@media (max-height: 500px) {
+  .logo-top { font-size: 12vmin; }
+  .logo-bottom { font-size: 15vmin; }
+  .logo { line-height: 0.95; }
+  .tagline { margin: 4px 0 10px; }
+  .title-panel { width: min(96vw, 720px); }
+  .title-panel .menu { flex-direction: row; max-width: 700px; }
+  .title-panel .menu .button { flex: 1; min-height: 56px; padding: 8px 10px; }
+  .title-panel .button-sub { font-size: 13px; }
+  .best-line { margin-top: 8px; }
+  #screen-run .menu { flex-direction: row; max-width: none; }
+  #screen-run .menu .button { flex: 1; min-height: 52px; padding: 8px 10px; }
+  .prize-panel {
+    width: min(96vw, 820px);
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    align-items: center;
+    gap: 16px;
+  }
+  .prize-medal { width: 90px; }
+  .prize-score { margin: 0 0 6px; }
+  .prize-instructions { margin: 8px 0; font-size: 16px; }
+  .prize-verify { padding: 8px; gap: 4px; }
+  .prize-claim { padding: 8px; }
+  .initial-letter { font-size: 34px; width: 60px; padding: 2px 0; }
+  .initial-step { height: 40px; width: 60px; font-size: 20px; }
+  .initial { gap: 4px; }
+  .initials { margin: 4px 0 0; gap: 10px; }
+  #screen-initials .screen-title { font-size: 36px; }
+  #screen-initials .results-reason { margin-bottom: 0; }
+  .board li { font-size: 18px; padding: 3px 10px; }
+  .keypad { gap: 6px; }
+  .keypad button { min-height: 44px; font-size: 22px; }
+  .board-panel { width: min(94vw, 640px); }
 }
 
 /* --- Rotate prompt ------------------------------------------------------------ */

@@ -13,6 +13,9 @@ let muted = false;
 let noiseBuffer = null;
 
 export function unlock() {
+  // Only a real tap or key press can start sound. Trying earlier just makes
+  // the browser print a warning.
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
   if (!context) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return;

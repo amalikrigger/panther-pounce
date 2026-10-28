@@ -139,6 +139,58 @@ export const SCORING = {
 };
 
 // -----------------------------------------------------------------------------
+// BOO BASH CHALLENGE: the paid booth game. Everyone plays the same levels.
+// -----------------------------------------------------------------------------
+export const CHALLENGE = {
+  // Level ids from src/levels/, in order. Staff can change these in staff mode.
+  levels: ['graveyard-gate', 'haunted-house', 'phantoms-lair'],
+  // Seconds the "level done" screen waits before moving on by itself.
+  autoNextSeconds: 6,
+};
+
+// -----------------------------------------------------------------------------
+// PRIZES (Boo Bash Challenge only). Staff can change the scores in staff mode.
+// -----------------------------------------------------------------------------
+// The highest tier whose minScore your challenge total reaches is your prize.
+// The names and colors match the other Panther Arcade games. The scores were
+// picked by simulating hundreds of runs: most players who aim get Bronze,
+// and Legendary takes a great run.
+export const PRIZE_TIERS = [
+  { id: 'bronze', name: 'Bronze Panther', minScore: 15000, color: '#cd7f32' },
+  { id: 'silver', name: 'Silver Panther', minScore: 25000, color: '#d9dde3' },
+  { id: 'gold', name: 'Gold Panther', minScore: 35000, color: '#F6BC1B' },
+  { id: 'legendary', name: 'Legendary Panther', minScore: 45000, color: '#c77dff' },
+];
+
+// -----------------------------------------------------------------------------
+// LEADERBOARD
+// -----------------------------------------------------------------------------
+export const LEADERBOARD = {
+  size: 10, // how many scores to show
+  // Initials that can't be entered. Keep this list short and obvious.
+  // (Same list as the other Panther Arcade games.)
+  blockedInitials: ['ASS', 'FUK', 'FUC', 'FCK', 'SEX', 'KKK', 'DIK', 'DIC', 'CUM', 'TIT', 'FAG', 'NIG', 'XXX', 'WTF', 'POO', 'PEE', 'GAY', 'JIZ', 'COK', 'KOK', 'SHT', 'SHI', 'HOE', 'PUS', 'VAG', 'NAZ'],
+};
+
+// -----------------------------------------------------------------------------
+// STAFF MODE (same gesture and PIN as the other Panther Arcade games)
+// -----------------------------------------------------------------------------
+export const STAFF = {
+  // Secret gesture: tap the moon this many times quickly on the title screen.
+  secretTaps: 5,
+  // Default PIN. Change it in staff mode on each booth device before the event.
+  // This repo is public, so everyone can read this one!
+  defaultPin: '1031',
+  // Default "event word" used to make prize verification codes. Set the same
+  // new word on every booth device in staff mode, so codes from one device can
+  // be checked on another. (Again: everyone can read this default.)
+  defaultEventWord: 'PANTHERS',
+  // Kiosk mode: after this many idle seconds on a results screen, return to
+  // the title screen.
+  kioskIdleSeconds: 25,
+};
+
+// -----------------------------------------------------------------------------
 // EFFECTS
 // -----------------------------------------------------------------------------
 export const EFFECTS = {

@@ -53,11 +53,19 @@
         </h1>
         <p class="tagline">Boo Bash 2026 · <span class="gold">#PantherPride</span></p>
         <div class="menu">
-          <button class="button button-primary" data-action="show-levels">
-            <span class="button-title">Play</span>
-            <span class="button-sub">Knock down the haunted towers!</span>
+          <button class="button button-primary" data-action="play-challenge">
+            <span class="button-title">Boo Bash Challenge</span>
+            <span class="button-sub" id="challenge-sub">3 levels · win prizes!</span>
+          </button>
+          <button class="button button-secondary" data-action="show-levels" id="free-play-button">
+            <span class="button-title">Free Play</span>
+            <span class="button-sub">Pick any level</span>
+          </button>
+          <button class="button button-tertiary" data-action="leaderboard">
+            <span class="button-title">🏆 Leaderboard</span>
           </button>
         </div>
+        <p class="best-line" id="best-line"></p>
         <p class="hint" id="ios-hint" hidden>Tip: tap Share → “Add to Home Screen” to play full screen.</p>
       </div>
     </section>
@@ -72,12 +80,12 @@
       </div>
     </section>
 
-    <section class="screen" id="screen-pause" aria-label="Paused">
+    <section class="screen" id="screen-paused" aria-label="Paused">
       <div class="panel">
         <h2 class="screen-title">Paused</h2>
         <div class="menu">
           <button class="button button-primary" data-action="resume"><span class="button-title">Resume</span></button>
-          <button class="button button-secondary" data-action="retry"><span class="button-title">Restart level</span></button>
+          <button class="button button-secondary" data-action="retry" id="pause-retry"><span class="button-title">Restart level</span></button>
           <button class="button button-secondary" data-action="menu"><span class="button-title">Quit to menu</span></button>
         </div>
       </div>
@@ -94,11 +102,202 @@
           <span class="new-best" id="result-new-best" hidden>New best!</span>
         </div>
         <dl class="stats" id="result-stats"></dl>
-        <div class="menu">
+        <p class="next-tier" id="result-run" hidden></p>
+        <!-- Free play buttons -->
+        <div class="menu" id="result-free-menu">
           <button class="button button-primary" id="result-next" data-action="next"><span class="button-title">Next level</span></button>
           <button class="button button-secondary" id="result-retry" data-action="retry"><span class="button-title">Play again</span></button>
           <button class="button button-secondary" data-action="show-levels"><span class="button-title">Levels</span></button>
         </div>
+        <!-- Boo Bash Challenge: no retries, just keep going -->
+        <div class="menu" id="result-challenge-menu" hidden>
+          <button class="button button-primary" data-action="challenge-continue">
+            <span class="button-title" id="challenge-continue-title">Next level</span>
+            <span class="button-sub" id="challenge-continue-sub"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- End of a Boo Bash Challenge run. -->
+    <section class="screen" id="screen-run" aria-label="Challenge results">
+      <div class="panel results-panel">
+        <h2 class="screen-title">Challenge complete!</h2>
+        <p class="results-reason" id="run-reason"></p>
+        <div class="results-score">
+          <span class="results-label">Total score</span>
+          <span class="results-value" id="run-score">0</span>
+        </div>
+        <p class="next-tier" id="run-next-tier" hidden></p>
+        <dl class="stats" id="run-stats"></dl>
+        <div class="menu">
+          <button class="button button-primary" data-action="enter-initials" id="run-save" hidden>
+            <span class="button-title">Save your score!</span>
+            <span class="button-sub">You made the leaderboard</span>
+          </button>
+          <button class="button button-primary" data-action="play-challenge" id="run-play-again"><span class="button-title">Play again</span></button>
+          <button class="button button-secondary" data-action="menu"><span class="button-title">Menu</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Prize screen: big and clear so a booth volunteer can check it at a glance. -->
+    <section class="screen" id="screen-prize" aria-label="Prize">
+      <div class="panel prize-panel" id="prize-panel">
+        <div class="prize-main">
+          <p class="prize-kicker">You won</p>
+          <div class="prize-medal" id="prize-medal" aria-hidden="true"></div>
+          <h2 class="prize-tier" id="prize-tier">Gold Panther</h2>
+          <p class="prize-score"><span id="prize-score">0</span> points · <span id="prize-time">0:00</span></p>
+        </div>
+        <div class="prize-side">
+          <div class="prize-verify" id="prize-verify" role="group" aria-label="Prize verification for staff">
+            <div class="prize-verify-row">
+              <span class="prize-verify-label">Round</span>
+              <span class="prize-verify-value" id="prize-round">A-001</span>
+            </div>
+            <div class="prize-verify-row">
+              <span class="prize-verify-label">Code</span>
+              <span class="prize-verify-value prize-code" id="prize-code">XXXX</span>
+            </div>
+            <div class="prize-clock" id="prize-clock" aria-live="off"></div>
+            <div class="prize-claim" id="prize-claim">
+              <span class="prize-claim-fill" id="prize-claim-fill"></span>
+              <span class="prize-claim-text" id="prize-claim-text">Staff: hold here to claim</span>
+            </div>
+          </div>
+          <p class="prize-instructions">Show this screen at the prize table!</p>
+          <div class="menu">
+            <button class="button button-primary" data-action="prize-continue"><span class="button-title">Continue</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Arcade-style initials: three letters only, never a name. -->
+    <section class="screen" id="screen-initials" aria-label="Enter your initials">
+      <div class="panel">
+        <h2 class="screen-title">New high score!</h2>
+        <p class="results-reason">Enter 3 initials (no names!)</p>
+        <div class="initials" id="initials">
+          <div class="initial">
+            <button class="initial-step" data-action="initial-up" data-slot="0" aria-label="Next letter, first initial">▲</button>
+            <span class="initial-letter" id="initial-0" aria-live="polite">A</span>
+            <button class="initial-step" data-action="initial-down" data-slot="0" aria-label="Previous letter, first initial">▼</button>
+          </div>
+          <div class="initial">
+            <button class="initial-step" data-action="initial-up" data-slot="1" aria-label="Next letter, second initial">▲</button>
+            <span class="initial-letter" id="initial-1" aria-live="polite">A</span>
+            <button class="initial-step" data-action="initial-down" data-slot="1" aria-label="Previous letter, second initial">▼</button>
+          </div>
+          <div class="initial">
+            <button class="initial-step" data-action="initial-up" data-slot="2" aria-label="Next letter, third initial">▲</button>
+            <span class="initial-letter" id="initial-2" aria-live="polite">A</span>
+            <button class="initial-step" data-action="initial-down" data-slot="2" aria-label="Previous letter, third initial">▼</button>
+          </div>
+        </div>
+        <p class="form-message" id="initials-message" role="alert"></p>
+        <div class="menu menu-row">
+          <button class="button button-primary" data-action="initials-save"><span class="button-title">Save</span></button>
+          <button class="button button-secondary" data-action="initials-skip"><span class="button-title">Skip</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-leaderboard" aria-label="Leaderboard">
+      <div class="panel board-panel">
+        <h2 class="screen-title">Leaderboard</h2>
+        <div class="tabs" role="tablist" aria-label="Which scores">
+          <button class="tab" role="tab" data-action="board-today" id="tab-today" aria-selected="true">Today</button>
+          <button class="tab" role="tab" data-action="board-all" id="tab-all" aria-selected="false">All time</button>
+        </div>
+        <ol class="board" id="board"></ol>
+        <p class="board-empty" id="board-empty" hidden>No scores yet. Be the first!</p>
+        <div class="menu menu-row">
+          <button class="button button-primary" data-action="play-challenge"><span class="button-title">Play</span></button>
+          <button class="button button-secondary" data-action="menu"><span class="button-title">Menu</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Staff mode. Opened by tapping the moon 5 times on the title screen. -->
+    <section class="screen" id="screen-pin" aria-label="Staff PIN">
+      <div class="panel pin-panel">
+        <h2 class="screen-title screen-title-small">Staff only</h2>
+        <div class="pin-dots" id="pin-dots" aria-live="polite" aria-label="PIN digits entered"></div>
+        <p class="form-message" id="pin-message" role="alert"></p>
+        <div class="keypad" id="keypad">
+          <button data-action="pin-digit" data-digit="1">1</button>
+          <button data-action="pin-digit" data-digit="2">2</button>
+          <button data-action="pin-digit" data-digit="3">3</button>
+          <button data-action="pin-digit" data-digit="4">4</button>
+          <button data-action="pin-digit" data-digit="5">5</button>
+          <button data-action="pin-digit" data-digit="6">6</button>
+          <button data-action="pin-digit" data-digit="7">7</button>
+          <button data-action="pin-digit" data-digit="8">8</button>
+          <button data-action="pin-digit" data-digit="9">9</button>
+          <button data-action="pin-back" aria-label="Delete">⌫</button>
+          <button data-action="pin-digit" data-digit="0">0</button>
+          <button data-action="pin-enter" aria-label="Enter">✓</button>
+        </div>
+        <div class="menu">
+          <button class="button button-secondary" data-action="menu"><span class="button-title">Cancel</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-staff" aria-label="Staff settings">
+      <div class="panel staff-panel">
+        <h2 class="screen-title screen-title-small">Staff settings</h2>
+        <form class="staff-form" id="staff-form" autocomplete="off">
+          <fieldset>
+            <legend>Booth</legend>
+            <label>Station letter <small>(different on each device)</small>
+              <select name="station" id="staff-station"></select>
+            </label>
+            <label>Event word <small>(same on every device; used for prize codes)</small>
+              <input name="eventWord" type="text" autocomplete="off" maxlength="24" spellcheck="false">
+            </label>
+            <label class="check"><input name="kiosk" type="checkbox"> Kiosk mode <small>(return to title when idle)</small></label>
+            <label>Idle seconds before returning
+              <input name="kioskIdleSeconds" type="number" min="10" max="300" step="5" inputmode="numeric">
+            </label>
+            <label class="check"><input name="allowFreePlay" type="checkbox"> Show Free Play</label>
+          </fieldset>
+          <fieldset>
+            <legend>Boo Bash Challenge</legend>
+            <p class="staff-note">Levels in the Challenge <small>(same on every device)</small></p>
+            <div id="staff-levels"></div>
+            <div id="staff-tiers"></div>
+          </fieldset>
+          <fieldset>
+            <legend>Check a prize code</legend>
+            <div class="verify-grid">
+              <label>Round <input name="verifyRound" type="text" autocomplete="off" placeholder="B-047" spellcheck="false"></label>
+              <label>Score <input name="verifyScore" type="number" inputmode="numeric" min="0"></label>
+            </div>
+            <label>Date <input name="verifyDate" type="date"></label>
+            <p class="verify-result" id="verify-result" aria-live="polite"></p>
+          </fieldset>
+          <fieldset>
+            <legend>Prizes won on this device</legend>
+            <ol class="prize-log" id="prize-log"></ol>
+          </fieldset>
+          <fieldset>
+            <legend>Security and reset</legend>
+            <label>New PIN <small>(4–8 digits; leave blank to keep)</small>
+              <input name="newPin" type="password" autocomplete="new-password" inputmode="numeric" pattern="[0-9]*" maxlength="8">
+            </label>
+            <button type="button" class="button button-danger" data-action="staff-reset-scores" id="staff-reset-scores">
+              <span class="button-title">Reset leaderboard</span>
+            </button>
+          </fieldset>
+          <p class="form-message" id="staff-message" role="status"></p>
+          <div class="menu menu-row">
+            <button type="button" class="button button-primary" data-action="staff-save"><span class="button-title">Save</span></button>
+            <button type="button" class="button button-secondary" data-action="menu"><span class="button-title">Exit</span></button>
+          </div>
+        </form>
       </div>
     </section>
 

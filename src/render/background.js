@@ -42,6 +42,14 @@ export class Background {
   }
 }
 
+/**
+ * Where the moon is on a screen of this size (CSS pixels). Staff mode is
+ * opened by tapping it, so main.js needs to know.
+ */
+export function moonCircle(w, h) {
+  return { x: w * 0.72, y: h * 0.3, radius: Math.min(w, h) * 0.2 };
+}
+
 function paint(ctx, w, h, setting) {
   const random = seeded(1031);
   const unit = Math.min(w, h);
@@ -66,9 +74,7 @@ function paint(ctx, w, h, setting) {
   ctx.globalAlpha = 1;
 
   // The harvest moon with a soft glow.
-  const moonX = w * 0.72;
-  const moonY = h * 0.3;
-  const moonR = unit * 0.2;
+  const { x: moonX, y: moonY, radius: moonR } = moonCircle(w, h);
   const glow = ctx.createRadialGradient(moonX, moonY, moonR * 0.8, moonX, moonY, moonR * 2.6);
   glow.addColorStop(0, 'rgba(255, 215, 94, 0.45)');
   glow.addColorStop(1, 'rgba(255, 215, 94, 0)');
