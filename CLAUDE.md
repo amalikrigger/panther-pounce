@@ -30,8 +30,8 @@ also a **teaching codebase**.
 
 ## The Panther Arcade
 
-Panther Pounce is one of three sibling games: `~/Developer/panther-slash`
-and `~/Developer/panther-prowl`. **Read them to match decisions, never edit
+Panther Pounce is one of three sibling games: `~/Developer/WebstormProjects/panther-slash`
+and `~/Developer/WebstormProjects/panther-prowl`. **Read them to match decisions, never edit
 them.** Keep these shared across all three, and treat Slash's `src/config.js`
 and `src/styles.css` as the reference:
 - the color tokens and fonts (Creepster display, Fredoka UI)
