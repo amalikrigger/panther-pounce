@@ -9,6 +9,7 @@
 // Want to use your own drawing instead? See "Add your own art" in README.md.
 
 import { THEME } from '../config.js';
+import { quality } from './quality.js';
 
 const TAU = Math.PI * 2;
 
@@ -145,7 +146,7 @@ export function drawGhost(ctx, r, { time = 0, hurt = 0 } = {}) {
   body.addColorStop(1, '#cfd8ff');
   ctx.fillStyle = body;
   ctx.shadowColor = 'rgba(200, 220, 255, 0.8)';
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = quality.glow ? 12 : 0;
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.lineWidth = r * 0.07;
@@ -241,7 +242,7 @@ export function drawPhantom(ctx, r, { time = 0, hurt = 0 } = {}) {
   // Angry glowing eyes.
   ctx.fillStyle = hurt > 0.5 ? '#ff3355' : '#29ff7a';
   ctx.shadowColor = ctx.fillStyle;
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = quality.glow ? 10 : 0;
   for (const side of [-1, 1]) {
     ctx.beginPath();
     ctx.moveTo(side * r * 0.12, -r * 0.18);
@@ -289,7 +290,7 @@ function drawGhostBody(ctx, r, time, light, dark) {
   body.addColorStop(1, dark);
   ctx.fillStyle = body;
   ctx.shadowColor = dark;
-  ctx.shadowBlur = 16;
+  ctx.shadowBlur = quality.glow ? 16 : 0;
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.lineWidth = r * 0.06;
@@ -459,7 +460,7 @@ export function drawJackOLantern(ctx, r, { time = 0, seed = 0, damage = 0 } = {}
   const flicker = 0.75 + 0.25 * Math.sin(time * 13 + seed * 50) * Math.sin(time * 7.3);
   ctx.fillStyle = `rgba(255, 225, 77, ${flicker})`;
   ctx.shadowColor = '#ffe14d';
-  ctx.shadowBlur = 14 * flicker;
+  ctx.shadowBlur = quality.glow ? 14 * flicker : 0;
   for (const side of [-1, 1]) {
     ctx.beginPath();
     ctx.moveTo(side * r * 0.5, -r * 0.05);

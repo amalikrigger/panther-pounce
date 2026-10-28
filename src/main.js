@@ -22,7 +22,7 @@
 //   this file                        turns events into score, sound and sparkle,
 //                                    and handles aiming and screens.
 
-import { THEME, PHYSICS, SLINGSHOT, PANTHER, MATERIALS, ENEMIES, DAMAGE, TURNS, SCORING, EFFECTS, CHALLENGE, STAFF } from './config.js';
+import { THEME, PHYSICS, SLINGSHOT, PANTHER, POUNCE, MATERIALS, ENEMIES, DAMAGE, TURNS, SCORING, EFFECTS, CHALLENGE, STAFF } from './config.js';
 import { LEVELS } from './levels/index.js';
 import { PhysicsWorld } from './physics/world.js';
 import { Round } from './core/round.js';
@@ -36,6 +36,7 @@ import { Renderer, predictPath } from './render/renderer.js';
 import { Effects } from './render/effects.js';
 import { moonCircle } from './render/background.js';
 import { loadArt } from './render/sprites.js';
+import { setLowPower } from './render/quality.js';
 import { sounds, unlock as unlockAudio, setMuted, isMuted } from './audio/sound.js';
 import { showScreen, onAction, setText, setHidden, setStats, starsMarkup } from './ui/screens.js';
 import { setupFullscreen } from './ui/fullscreen.js';
@@ -84,6 +85,11 @@ const app = {
   resultTimer: null,
   autoNextAt: null, // when the challenge "level done" screen moves on by itself
   moonTaps: [],
+  pounceHintsLeft: 3, // show "tap to POUNCE" on the first few shots
+  showPounceHint: false,
+  trailTimer: 0,
+  keyAim: { angle: 30, power: 0.8 }, // keyboard aiming: degrees up, 0..1 power
+  slowSeconds: 0, // how long the game has been running slowly
   time: 0,
   progress: load('progress', {}), // { [levelId]: { best, stars } }
 };
@@ -96,6 +102,7 @@ function goTo(screen) {
   document.body.dataset.screen = screen;
   document.body.classList.toggle('in-game', screen === 'playing' || screen === 'paused');
   setHidden('#hud', !(screen === 'playing' || screen === 'paused'));
+  if (screen !== 'playing') setHidden('#toast', true);
   showScreen(screen === 'playing' ? null : screen);
   if (screen !== 'prize') hidePrize();
   if (screen !== 'initials') hideInitials();
@@ -207,6 +214,7 @@ function step(dt) {
   if (app.reload < 1) app.reload = Math.min(1, app.reload + dt * 1.6);
 
   for (const event of app.physics.step(dt)) handleEvent(event);
+  updateFlyingPanther(dt);
 
   const round = app.round;
   if (round.state === 'flying' || round.state === 'cleared') {
@@ -218,8 +226,47 @@ function step(dt) {
   }
 }
 
+/** The flying panther leaves a trail, and the pounce hint shows while it can pounce. */
+function updateFlyingPanther(dt) {
+  const panther = flyingPanther();
+  app.trailTimer -= dt;
+  if (panther && app.trailTimer <= 0) {
+    app.trailTimer = 0.035;
+    const { x, y } = panther.body.getPosition();
+    effects.trail(x, y, panther.pounced);
+  }
+  setHidden('#toast', !(panther && !panther.touched && !panther.pounced && app.showPounceHint && POUNCE.enabled));
+}
+
+/** The panther that was just launched, if it's still around. */
+const flyingPanther = () => app.physics?.entities.find((e) => e.kind === 'panther') ?? null;
+
+function tryPounce() {
+  const panther = flyingPanther();
+  if (!POUNCE.enabled || !panther || !app.physics.pounce(panther, POUNCE)) return;
+  const { x, y } = panther.body.getPosition();
+  const v = panther.body.getLinearVelocity();
+  effects.pounceBurst(x, y, v.x, v.y);
+  effects.text(x, y + 1.2, 'POUNCE!', THEME.gold, true);
+  sounds.pounce();
+  if (EFFECTS.screenShake) camera.shake(reducedMotion?.matches ? 2 : 6);
+  app.pounceHintsLeft = 0; // they've got it
+  app.showPounceHint = false;
+}
+
+/**
+ * Old tablets can struggle with glows and lots of particles. If the game
+ * runs slowly for a couple of seconds, switch to low-power drawing.
+ */
+function watchSpeed(elapsed) {
+  if (app.screen !== 'playing' || !EFFECTS.autoLowPower) return;
+  app.slowSeconds = elapsed > 1 / 40 ? app.slowSeconds + elapsed : Math.max(0, app.slowSeconds - elapsed * 0.5);
+  if (app.slowSeconds > 2) setLowPower(true);
+}
+
 function frame(elapsed, alpha) {
   if (app.screen !== 'playing') app.time += elapsed;
+  watchSpeed(elapsed);
   if (app.physics) camera.frame(cameraRect());
   camera.update(elapsed);
   effects.update(app.screen === 'paused' ? 0 : elapsed);
@@ -325,10 +372,23 @@ function launchVelocity() {
 
 const canAim = () => app.screen === 'playing' && app.round.state === 'ready' && app.reload >= 1;
 
+function launch() {
+  app.physics.launchPanther(launchStart(), launchVelocity());
+  app.round.launch();
+  app.shot = { time: 0, quietTime: 0 };
+  // Show the "tap to pounce" hint on the first few shots.
+  app.showPounceHint = app.pounceHintsLeft > 0;
+  app.pounceHintsLeft = Math.max(0, app.pounceHintsLeft - 1);
+  sounds.launch();
+  updateHud();
+}
+
 new PointerInput(canvas, {
   onStart(point) {
     unlockAudio();
     if (app.screen === 'title') return checkMoonTap(point);
+    // A tap while the panther is flying makes it pounce.
+    if (app.screen === 'playing' && app.round.state === 'flying') return tryPounce();
     if (!canAim()) return;
     // Drag ANYWHERE to aim. Small screens make the slingshot tiny, so
     // requiring a touch right on the panther would be frustrating.
@@ -359,16 +419,51 @@ new PointerInput(canvas, {
   onEnd(_point, cancelled) {
     if (!app.aim.active) return;
     const tooShort = pullLength() < SLINGSHOT.minPull;
-    if (!cancelled && !tooShort && canAim()) {
-      app.physics.launchPanther(launchStart(), launchVelocity());
-      app.round.launch();
-      app.shot = { time: 0, quietTime: 0 };
-      sounds.launch();
-      updateHud();
-    }
+    if (!cancelled && !tooShort && canAim()) launch();
     app.aim = { active: false, start: null, pull: { x: 0, y: 0 } };
   },
 });
+
+// --- Keyboard aiming (for players who can't drag, and for desktops) -------------
+//   ← → tilt the aim up and down, ↑ ↓ change the power,
+//   Space or Enter launches, and Space again pounces.
+
+function updateKeyboardAim(key) {
+  const aim = app.keyAim;
+  if (key === 'ArrowLeft') aim.angle = Math.min(80, aim.angle + 3);
+  if (key === 'ArrowRight') aim.angle = Math.max(-10, aim.angle - 3);
+  if (key === 'ArrowUp') aim.power = Math.min(1, aim.power + 0.05);
+  if (key === 'ArrowDown') aim.power = Math.max(0.3, aim.power - 0.05);
+  const radians = (aim.angle * Math.PI) / 180;
+  const pull = SLINGSHOT.maxPull * aim.power;
+  // Pull back and down, opposite to where the panther should fly (but not into the ground).
+  const pullY = Math.max(-Math.sin(radians) * pull, PANTHER.radius + 0.1 - SLINGSHOT.y);
+  app.aim = { active: true, keyboard: true, start: null, pull: { x: -Math.cos(radians) * pull, y: pullY } };
+  sounds.stretch();
+}
+
+function onGameKey(event) {
+  if (app.screen !== 'playing') return false;
+  if (event.key.startsWith('Arrow') && canAim()) {
+    event.preventDefault();
+    unlockAudio();
+    updateKeyboardAim(event.key);
+    return true;
+  }
+  if (event.key === ' ' || event.key === 'Enter') {
+    event.preventDefault();
+    unlockAudio();
+    if (app.round.state === 'flying') {
+      tryPounce();
+    } else if (canAim()) {
+      if (!app.aim.keyboard) updateKeyboardAim('');
+      launch();
+      app.aim = { active: false, start: null, pull: { x: 0, y: 0 } };
+    }
+    return true;
+  }
+  return false;
+}
 
 // --- HUD -------------------------------------------------------------------------
 
@@ -689,6 +784,7 @@ onAction((action, button) => {
 document.addEventListener('visibilitychange', () => document.hidden && pause());
 portraitTouch?.addEventListener?.('change', (event) => event.matches && pause());
 window.addEventListener('keydown', (event) => {
+  if (onGameKey(event)) return;
   if (app.screen === 'initials' && event.key === 'Enter') {
     event.preventDefault();
     saveInitials();
@@ -728,10 +824,38 @@ async function loadFonts() {
   await Promise.race([fonts.catch(() => {}), timeout]);
 }
 
+/**
+ * Offline support (see sw.js). Only on the real website (https), or with
+ * ?sw in the address for testing. On a local test server we remove any old
+ * service worker instead, so a refresh always shows your latest edits.
+ */
+function setupOffline() {
+  if (!('serviceWorker' in navigator)) return;
+  const wanted = location.protocol === 'https:' || new URLSearchParams(location.search).has('sw');
+  if (!wanted) {
+    navigator.serviceWorker.getRegistrations?.().then((registrations) => registrations.forEach((r) => r.unregister()));
+    return;
+  }
+  navigator.serviceWorker
+    .register('sw.js')
+    .then(() => navigator.serviceWorker.ready)
+    .then((registration) => {
+      // Files loaded before the worker started aren't saved yet; send their list.
+      const urls = [location.href.split('?')[0], ...performance.getEntriesByType('resource').map((entry) => entry.name)]
+        .filter((url) => url.startsWith(location.origin));
+      registration.active?.postMessage({ type: 'cache-urls', urls });
+    })
+    .catch(() => {
+      // No offline support this time; the game still works online.
+    });
+}
+
 async function start() {
   resize();
   const artValues = [PANTHER.art, ...Object.values(MATERIALS).map((m) => m.art), ...Object.values(ENEMIES).map((e) => e.art)];
   await Promise.all([loadFonts(), loadArt(artValues)]);
+  // After loading, so the list of files to save offline is complete.
+  setupOffline();
   showTitle();
   startLoop({ stepSeconds: STEP_SECONDS, step, frame });
 }

@@ -30,6 +30,29 @@ export class PhysicsWorld {
 
     this.bounds = this.measureBounds();
     this.world.on('post-solve', (contact, impulse) => this.onHit(contact, impulse));
+    // Remember when a panther first touches anything: its pounce only works
+    // while it's still in the air.
+    this.world.on('begin-contact', (contact) => {
+      for (const fixture of [contact.getFixtureA(), contact.getFixtureB()]) {
+        const entity = fixture.getBody().getUserData();
+        if (entity?.kind === 'panther') entity.touched = true;
+      }
+    });
+  }
+
+  /**
+   * The panther's special move: a burst of speed in the direction it's
+   * already flying. Returns false if it can't pounce (it already landed).
+   */
+  pounce(entity, { speedMultiplier, minSpeed }) {
+    if (!entity.alive || entity.touched || entity.pounced) return false;
+    const v = entity.body.getLinearVelocity();
+    const speed = Math.hypot(v.x, v.y);
+    if (speed < 0.1) return false;
+    const newSpeed = Math.max(speed * speedMultiplier, minSpeed);
+    entity.body.setLinearVelocity(Vec2((v.x / speed) * newSpeed, (v.y / speed) * newSpeed));
+    entity.pounced = true;
+    return true;
   }
 
   // --- Building the level ---------------------------------------------------

@@ -84,7 +84,7 @@ export class Renderer {
       this.withLocal(ctx, anchorX, anchorY, 0, () => drawSlingshot(ctx, anchorY, 'back'));
       if (sling?.pantherVisible) {
         // The band wraps behind the panther, from the back prong.
-        drawBand(ctx, backTip.x, backTip.y, pantherX - PANTHER.radius * 0.6, pantherY, stretch);
+        drawBand(ctx, backTip.x, backTip.y, pantherX - PANTHER.radius, pantherY - 0.2, stretch);
         const hop = sling.reload < 1 ? Math.sin(sling.reload * Math.PI) * 1.2 : 0;
         const pantherInterp = { x: pantherX, y: pantherY + hop };
         this.withLocal(ctx, pantherInterp.x, pantherInterp.y, sling.aiming ? 0 : Math.sin(scene.time * 2) * 0.05, () =>
@@ -92,7 +92,7 @@ export class Renderer {
         );
       }
     } else {
-      if (sling?.pantherVisible) drawBand(ctx, frontTip.x, frontTip.y, pantherX - PANTHER.radius * 0.6, pantherY, stretch);
+      if (sling?.pantherVisible) drawBand(ctx, frontTip.x, frontTip.y, pantherX - PANTHER.radius, pantherY - 0.2, stretch);
       this.withLocal(ctx, anchorX, anchorY, 0, () => drawSlingshot(ctx, anchorY, 'front'));
     }
   }

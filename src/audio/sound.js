@@ -155,6 +155,13 @@ export const sounds = {
     if (!ready()) return;
     tone({ type: 'triangle', from: 880 * (1 + index * 0.25), duration: 0.25, volume: 0.2 });
   },
+  pounce() {
+    if (!ready()) return;
+    // A short growly roar: a rough low tone sliding down, plus breathy noise.
+    tone({ type: 'sawtooth', from: 160, to: 70, duration: 0.45, volume: 0.22 });
+    tone({ type: 'square', from: 82, to: 55, duration: 0.4, volume: 0.08 });
+    noise({ duration: 0.4, volume: 0.25, filter: 'bandpass', from: 900, to: 300, q: 1.2 });
+  },
   click() {
     if (!ready()) return;
     tone({ type: 'triangle', from: 660, to: 880, duration: 0.07, volume: 0.12 });

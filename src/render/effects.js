@@ -5,6 +5,7 @@
 // so a giant explosion can't slow an old tablet down.
 
 import { EFFECTS, THEME } from '../config.js';
+import { quality } from './quality.js';
 
 const TAU = Math.PI * 2;
 const GRAVITY = 12;
@@ -24,8 +25,47 @@ export class Effects {
   }
 
   add(particle) {
-    if (this.particles.length >= EFFECTS.maxParticles) this.particles.shift();
+    // In low-power mode, skip some of the small bits (never the shockwave rings).
+    if (particle.kind !== 'ring' && Math.random() > quality.particleScale) return;
+    if (this.particles.length >= EFFECTS.maxParticles * quality.particleScale) this.particles.shift();
     this.particles.push(particle);
+  }
+
+  /** A fading dot left behind the flying panther. */
+  trail(x, y, pounced) {
+    this.add({
+      kind: 'trail',
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      size: pounced ? 0.32 : 0.18,
+      color: pounced ? THEME.gold : 'rgba(199, 125, 255, 0.8)',
+      life: pounced ? 0.6 : 0.45,
+      age: 0,
+    });
+  }
+
+  /** The burst when the panther pounces: gold streaks flying backwards. */
+  pounceBurst(x, y, vx, vy) {
+    const speed = Math.hypot(vx, vy) || 1;
+    for (let i = 0; i < 16; i++) {
+      const spread = (Math.random() - 0.5) * 1.2;
+      const back = 4 + Math.random() * 6;
+      const angle = Math.atan2(-vy, -vx) + spread;
+      this.add({
+        kind: 'spark',
+        x,
+        y,
+        vx: Math.cos(angle) * back + (vx / speed) * 2,
+        vy: Math.sin(angle) * back + (vy / speed) * 2,
+        size: 0.08 + Math.random() * 0.1,
+        color: i % 3 ? THEME.gold : '#fff6d6',
+        life: 0.4 + Math.random() * 0.3,
+        age: 0,
+      });
+    }
+    this.shockwave(x, y, 2);
   }
 
   /** Pieces flying off a broken block. */

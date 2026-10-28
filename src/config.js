@@ -69,6 +69,15 @@ export const PANTHER = {
   rollingDrag: 6, // slows rolling so a shot ends soon after the panther lands
 };
 
+// The panther's special move. While it's flying (before it touches anything),
+// tap the screen (or press Space) to POUNCE: a burst of speed straight ahead.
+// One pounce per shot.
+export const POUNCE = {
+  enabled: true,
+  speedMultiplier: 1.7, // how much faster it goes
+  minSpeed: 18, // pounce speed is at least this, even from a slow shot
+};
+
 // -----------------------------------------------------------------------------
 // MATERIALS: what structures are built from.
 // -----------------------------------------------------------------------------
@@ -159,7 +168,7 @@ export const PRIZE_TIERS = [
   { id: 'bronze', name: 'Bronze Panther', minScore: 15000, color: '#cd7f32' },
   { id: 'silver', name: 'Silver Panther', minScore: 25000, color: '#d9dde3' },
   { id: 'gold', name: 'Gold Panther', minScore: 35000, color: '#F6BC1B' },
-  { id: 'legendary', name: 'Legendary Panther', minScore: 45000, color: '#c77dff' },
+  { id: 'legendary', name: 'Legendary Panther', minScore: 48000, color: '#c77dff' },
 ];
 
 // -----------------------------------------------------------------------------
@@ -196,4 +205,7 @@ export const STAFF = {
 export const EFFECTS = {
   maxParticles: 220, // hard cap so older tablets stay smooth
   screenShake: true, // gentler automatically if the device asks for reduced motion
+  // Turn off glows and use fewer particles if the game runs slowly
+  // (older tablets and Chromebooks).
+  autoLowPower: true,
 };

@@ -10,11 +10,13 @@
 
   <!-- "Add to Home Screen" support. iPhones don't allow the fullscreen
        button, so this is how the game goes full screen there. -->
+  <link rel="manifest" href="manifest.webmanifest">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Panther Pounce">
-  <link rel="icon" href="data:,">
+  <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+  <link rel="icon" href="assets/icons/icon-192.png" type="image/png">
 
   <!-- Fonts are bundled so the game works with no internet. -->
   <link rel="preload" href="assets/fonts/creepster-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -26,7 +28,7 @@
   <script type="module" src="src/main.js"></script>
 </head>
 <body>
-  <canvas id="game" aria-label="Game area: drag back to aim the panther, let go to launch"></canvas>
+  <canvas id="game" aria-label="Game area: drag back to aim the panther and let go to launch, or use the arrow keys to aim and Space to launch. Tap or press Space again to pounce."></canvas>
 
   <div id="ui">
     <!-- In-game heads-up display. -->
@@ -40,6 +42,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
       </button>
     </header>
+
+    <!-- Hint shown on the first few shots. -->
+    <p class="toast" id="toast" role="status" hidden>Tap again to <strong>POUNCE!</strong></p>
 
     <section class="screen active" id="screen-loading" aria-label="Loading">
       <p class="loading-text">Waking the panther…</p>

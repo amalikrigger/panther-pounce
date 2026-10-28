@@ -7,5 +7,6 @@ import pumpkinPatch from './02-pumpkin-patch.js';
 import hauntedHouse from './03-haunted-house.js';
 import clocktower from './04-clocktower.js';
 import phantomsLair from './05-phantoms-lair.js';
+import boneBridge from './06-bone-bridge.js';
 
-export const LEVELS = [graveyardGate, pumpkinPatch, hauntedHouse, clocktower, phantomsLair];
+export const LEVELS = [graveyardGate, pumpkinPatch, hauntedHouse, clocktower, phantomsLair, boneBridge];
