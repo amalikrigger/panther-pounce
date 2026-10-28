@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html><body style="margin:0;background:#000;color:#fff;font:14px monospace">
+<iframe id="f" src="../index.html" width="1000" height="600" style="border:0;display:block"></iframe>
+<pre id="out"></pre>
+<script>
+// TEMP preview helper (dev only, not linked from the game).
+// URL hash: #<marginLeft>[,mode]
+//   mode "wave"  - make the spectators wave every second
+//   mode "aim"   - pull the slingshot and hold, to see the aiming arc
+//   mode "check" - pull, release, and compare the arc with the real flight
+var PULL = { x: 120, y: 160 }; // where the fake finger drags the panther to
+var out = document.getElementById('out');
+
+function fakeTouch(w, x, y) {
+  return [{ getLocation: function () { return w.cc.p(x, y); }, _point: { x: x, y: y } }];
+}
+
+// Same maths as js/fx/trajectory.js, but over a long flight.
+function predictPath(d) {
+  var m = d.pxPerMetre, r = d.radius / m, mass = d.density * Math.PI * r * r;
+  var vx = d.impulseX / mass, vy = d.impulseY / mass, x = d.x / m, y = d.y / m, pts = [];
+  for (var i = 0; i < 600 && y * m > 87 + d.radius; i++) {
+    vy -= d.gravity * d.step; x += vx * d.step; y += vy * d.step;
+    pts.push({ x: x * m, y: y * m });
+  }
+  return pts;
+}
+
+function yAt(path, x) {
+  for (var i = 1; i < path.length; i++) {
+    if (path[i].x >= x) {
+      var a = path[i - 1], b = path[i], t = (x - a.x) / (b.x - a.x || 1);
+      return a.y + (b.y - a.y) * t;
+    }
+  }
+  return null;
+}
+
+document.getElementById('f').onload = function () {
+  var d = this.contentDocument, w = this.contentWindow;
+  var opts = location.hash.slice(1).split(',');
+  d.getElementById('frontpage_div').style.display = 'none';
+  d.getElementById('viewport').style.marginLeft = (opts[0] || '0') + 'px';
+  if (opts[1] === 'wave') setInterval(function () { w.PP.spectators.wave(true); }, 1000);
+  if (opts[1] !== 'aim' && opts[1] !== 'check') return;
+
+  var aim = null;
+  w.PP.on('sling:aim', function (data) { aim = data; });
+  setTimeout(function () { // wait for the panther to hop onto the slingshot
+    var g = w.game;
+    g.onTouchesBegan(fakeTouch(w, 190, 210));
+    g.onTouchesMoved(fakeTouch(w, PULL.x, PULL.y));
+    if (opts[1] === 'aim' || !aim) { out.textContent = aim ? 'aiming, power ' + aim.power.toFixed(2) : 'no sling:aim event'; return; }
+
+    var path = predictPath(aim), worst = 0, samples = 0;
+    g.onTouchesEnded();
+    var bird = g.birdSprite[0];
+    // Step the real Box2D world ourselves (headless browsers barely render frames).
+    for (var s = 0; s < 400; s++) {
+      w.b2.simulate();
+      var p = bird.getPosition(), y = yAt(path, p.x);
+      if (y === null || bird.body.GetUserData().isContacted) break;
+      worst = Math.max(worst, Math.abs(y - p.y));
+      samples++;
+    }
+    out.textContent = 'power ' + aim.power.toFixed(2) + ', samples ' + samples + ', worst error ' + worst.toFixed(2) + ' px';
+  }, 2500);
+};
+</script>
+</body></html>

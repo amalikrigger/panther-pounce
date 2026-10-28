@@ -1,0 +1,49 @@
+/*
+ * Panther Pounce - Halloween theme: font + color palette.
+ * Load this before style.css. js/render/parallax.js reads these colors
+ * too, so changing a value here also recolors the animated sky.
+ */
+
+@font-face {
+  font-family: "Press Start 2P";
+  src: url("../fonts/PressStart2P-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  /* night sky, top to bottom */
+  --pp-ink: #0b0418;
+  --pp-night: #1a0b33;
+  --pp-purple: #2e1257;
+  --pp-violet: #4b1d7a;
+  --pp-plum: #6b2a7a;
+
+  /* panther colors + spooky accents */
+  --pp-gold: #f6bc1b;
+  --pp-gold-hi: #ffe48a;
+  --pp-maroon: #701114;
+  --pp-charcoal: #58595b;
+  --pp-pumpkin: #ff7a1a;
+  --pp-pumpkin-lo: #b84a00;
+  --pp-toxic: #7cff4f;
+  --pp-ghost: #eae6ff;
+  --pp-window: #ffb347;
+
+  /* blood moon. For a golden harvest moon use the values in the comments. */
+  --pp-moon: #c62a2f;        /* #f6bc1b */
+  --pp-moon-hi: #ef5a4c;     /* #ffe48a */
+  --pp-moon-crater: #8e1a22; /* #c98a10 */
+  --pp-moon-glow: #ff3b3b;   /* #ffc94a */
+
+  /* scenery silhouettes, far to near */
+  --pp-sil-far: #22103f;
+  --pp-sil-mid: #150828;
+  --pp-sil-near: #07030f;
+  --pp-fog: #b9a7e6;
+
+  /* easter egg spectators (js/render/spectators.js) */
+  --pp-skin: #f4d2b8;
+  --pp-skin-shade: #cf9677;
+
+  --pp-font: "Press Start 2P", "Courier New", monospace;
+}

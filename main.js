@@ -24,6 +24,9 @@ var cocos2dApp = cc.Application.extend({
         director.setAnimationInterval(1.0 / this.config['frameRate']);
         director.runWithScene(new this.startScene());
 
+        // Keep the pixel-art sprites sharp instead of blurry when scaled.
+        if (cc.renderContext) cc.renderContext.imageSmoothingEnabled = false;
+
         return true;
     }
 });
