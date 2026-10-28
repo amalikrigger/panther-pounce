@@ -124,28 +124,52 @@ at 60 fps.
 - `src/render/`: sky, moon and silhouettes, plus blocks, the panther, enemies
   and particles, all drawn in code. A student PNG can replace any of them
   through config.
-- `src/input/pointer.js`: Pointer Events for drag-to-aim, plus a pan gesture.
+- `src/input/pointer.js`: Pointer Events for drag-anywhere aiming. The camera
+  frames the whole level automatically, so there's no manual pan.
 - `src/audio/`: Web Audio synthesized effects, unlocked on the first tap.
-- `src/storage/`: versioned `localStorage` keys (`pp_*`).
-- `src/ui/`: the screens, the HUD and fullscreen.
+- `src/storage/`: versioned `localStorage` keys (`pantherPounce.v1.*`):
+  progress, leaderboard, prize log, booth settings.
+- `src/ui/`: the screens, HUD, fullscreen, prize, initials, leaderboard,
+  staff and kiosk.
 - **Offline:** ES modules need http, not `file://`. Booth devices run a local
   server or the hosted site. A service worker is a Phase 3 item, the same as
   in Slash.
 
-## Prize verification (proposal)
+## Winning (built in Phase 2, same scheme as Panther Slash)
 
-The prize screen shows:
-- the tier badge and score
-- the finish time and a **live ticking clock**
-- the **device run number** (#047)
-- a **4-character code**, a hash of run number + score + tier + a booth
-  secret that staff set in staff mode
+- **Boo Bash Challenge:** a fixed run of levels (default Graveyard Gate →
+  Haunted House → Phantom's Lair; staff can choose). Each level is played
+  once, win or lose, and the scores add up. There are no retries, and a
+  6-second auto-continue keeps the line moving.
+- **Prize tiers** on the run total: Bronze 15k, Silver 25k, Gold 35k,
+  Legendary 45k. These came from simulating 80 runs with the real physics:
+  - wild flinging: median 18k
+  - rough aiming: median 32k, 90th percentile 41k
+  - best run: 48k
 
-A screenshot of someone else's win fails three ways:
-- the clock is frozen
-- the run number is stale
-- staff can tap the hidden corner to check the code against this device's
-  last run, and stamp it **CLAIMED** so the same screen can't be reused.
+  Staff can retune them on the night.
+- **Prize screen:**
+  - tier, score, run time, a live ticking clock and a shimmering border
+  - the run label (`B-047`) and a 4-character code:
+    `hash(game, event word, station, run, score, tier, date)`
+  - hold-to-claim stamps the run CLAIMED, and staff mode re-computes the
+    code and flags mismatched scores or double claims
+  - every prize is logged the moment the run ends
+- **Leaderboard:** per device, top 10, Today / All time, with 3 initials from
+  the shared blocklist. Today's best shows on the title.
+- **Staff mode:** 5 moon taps + PIN, with a lockout after 5 wrong tries. It
+  sets the station, event word, kiosk on/off and idle time, Free Play on/off,
+  challenge levels, tier scores and PIN. It also has the code checker, the
+  prize log and a two-tap leaderboard reset.
+- **Kiosk:** idle screens return to the title. An unclaimed prize waits 4×
+  longer, and an abandoned level waits 4× longer.
+- **Booth runbook:** `docs/booth-guide.md`.
+
+**Online shared leaderboard:** not built. Panther Slash's
+`docs/online-leaderboard-proposal.md` already covers the whole arcade, and I
+agree with its recommendation: don't build it for the event. If it's built
+later, use **one** table for all three games with a `game` column, rather
+than three services.
 
 ## Phases
 
@@ -189,9 +213,25 @@ confirmed, in-browser level editor.
     launches clear level 1. The console is clean.
   - Holds 60 fps under a 4× CPU throttle at 1024×768 @2×.
   - `node --test`: 17/17.
-  - **Waiting on Amali:** checkpoint review, commit approval, and approval to
-    delete the legacy Angry Birds files.
-- [ ] Phase 2: next (Boo Bash Challenge, prize screen and code, initials
-  leaderboard and today's best, staff PIN and kiosk)
-- [ ] Phase 2
-- [ ] Phase 3
+  - Committed with the legacy files removed (approved by Amali, Oct 27).
+- [x] Phase 2: built Oct 27 on `pounce-rebuild`.
+  - A 23-step scripted booth flow passes at 844×390 touch, 667×375 touch and
+    1280×800 mouse. It covers:
+    - moon taps, PIN and staff save
+    - a real touch launch
+    - auto-continue
+    - the prize screen with a ticking clock, and hold-to-claim
+    - initials, the leaderboard and today's best
+    - the staff code check, including flagging a fake score
+    - the kiosk idle return and wrong-PIN rejection
+    - a clean console
+  - The prize screen and initials fit without scrolling at 667×375.
+  - The staff form scrolls by touch.
+  - `node --test`: 29/29.
+  - **Waiting on Amali:** checkpoint review and commit approval.
+- [ ] Phase 3: next
+  - service worker for offline (Chromebooks and iPads)
+  - juice and sound polish
+  - a pounce-dash ability
+  - more levels
+  - low-end tuning and an accessibility pass

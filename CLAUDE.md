@@ -63,8 +63,11 @@ harvest moon and pumpkin orange.
 - Art is drawn in code (`src/render/art.js`). Any `art` value can instead be a
   student PNG path (`src/render/sprites.js`).
 - Tests: `node --test`. Each level must stand up by itself for 10 s.
-
-The old cocos2d/Box2DWeb/Angry Birds files are unused legacy, pending deletion.
+- The booth game is the **Boo Bash Challenge** (`src/core/challenge.js`): a
+  fixed level run whose total score decides the prize tier. Prize codes,
+  initials, staff mode and kiosk use the same scheme as Panther Slash. The
+  per-device booth settings live in `src/storage/settings.js`. Booth runbook:
+  `docs/booth-guide.md`.
 
 ## Verifying changes
 

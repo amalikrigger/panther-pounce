@@ -35,9 +35,20 @@ address instead of `localhost`, for example `http://192.168.1.20:8000`.
 3. Clear every enemy before you run out of panthers. Unused panthers are
    worth bonus points.
 4. Break blocks for extra points. **Jack-o'-lanterns explode!**
-5. Beat a level to unlock the next one. Earn up to 3 stars per level.
 
 Works with a mouse, a finger or a pen. Press **P** or **Esc** to pause.
+
+Two ways to play:
+
+- **Boo Bash Challenge** (the booth game): 3 levels in a row, no retries,
+  and the scores add up. A high enough total wins a prize (Bronze, Silver,
+  Gold or Legendary Panther), and a top-10 score can go on the leaderboard
+  with 3 initials.
+- **Free Play:** pick any unlocked level and replay it as much as you like.
+  Beat a level to unlock the next. Earn up to 3 stars per level.
+
+Running the booth (staff mode, prizes, kiosk mode): see
+[docs/booth-guide.md](docs/booth-guide.md).
 
 ## How the code is organized
 
@@ -46,14 +57,17 @@ index.html             the page: canvas + menus
 src/config.js          ⭐ every number you might want to change
 src/levels/            ⭐ one file per level
 src/main.js            connects everything: aiming, screens, events
-src/core/round.js      the rules: turns, score, stars, win/lose (no drawing)
+src/core/round.js      the rules for one level: turns, score, stars, win/lose
+src/core/challenge.js  the Boo Bash Challenge run (several levels in a row)
+src/core/prizes.js     prize tiers and the verification code
+src/core/leaderboard.js  ranking scores and checking initials
 src/physics/world.js   builds the level with Planck.js physics, reports hits and breaks
 src/engine/            the game loop and the camera
 src/input/pointer.js   mouse/touch/pen dragging
 src/render/            all the drawing: art.js (characters, blocks), background.js, effects.js
 src/audio/sound.js     sound effects made with code
-src/ui/                menu screens and the fullscreen button
-src/storage/store.js   saves progress on this device
+src/ui/                menu screens, prize screen, initials, leaderboard, staff mode
+src/storage/           saves progress, scores, prizes and booth settings on this device
 tests/                 automatic checks (run with: node --test)
 vendor/planck-1.5.0/   the physics library (don't edit)
 ```
@@ -76,7 +90,9 @@ The world uses **units** (about one metre each). The ground is at `y = 0` and
    - optional: `angle` (degrees) and `fixed: true` (never moves or breaks)
 4. Enemies need `type` (`'ghost'`, `'bat'` or `'phantom'`), `x` and `y`
    (the bottom of the enemy).
-5. Add it to the list in `src/levels/index.js`.
+5. Add it to the list in `src/levels/index.js`. (To put it in the Boo Bash
+   Challenge, add its `id` to `CHALLENGE.levels` in `src/config.js`, or pick
+   it in staff mode.)
 6. Run `node --test`. It checks that your level stands up by itself and tells
    you which block slides if it doesn't.
 7. Play it and set `par` so a good run earns 2 stars and a great run earns 3.

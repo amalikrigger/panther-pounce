@@ -48,10 +48,9 @@ All sound effects are synthesized live with the Web Audio API in
 |---|---|---|
 | *(none yet)* | | |
 
-## Legacy files (to be removed)
+## Removed legacy files
 
-The files the project started from (`sprites/`, `sound/`, `cocos2d/`, `box2d/`,
-`game.js`, the root `main.js`, `cocos2d.js` and `style.css`) came from an
-HTML5 port of Rovio's *Angry Birds*. The art is Rovio's, and the font
-(`komika.ttf`) and sounds have no known license. **None of them are used by
-Panther Pounce**, and they are scheduled for deletion.
+The project started from an HTML5 port of Rovio's *Angry Birds* (Rovio's art,
+plus a font and sounds with no known license). All of those files were
+deleted on Oct 27, 2026, and nothing from them is used. They are still in the
+git history before that date, so don't restore them.
