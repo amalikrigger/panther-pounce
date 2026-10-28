@@ -11,8 +11,10 @@
 var PULL = { x: 120, y: 160 }; // where the fake finger drags the panther to
 var out = document.getElementById('out');
 
+// x, y are game-world points; the engine reports touches in (zoomed) canvas pixels.
 function fakeTouch(w, x, y) {
-  return [{ getLocation: function () { return w.cc.p(x, y); }, _point: { x: x, y: y } }];
+  var z = w.VIEW_ZOOM || 1;
+  return [{ getLocation: function () { return w.cc.p(x * z, y * z); }, _point: { x: x * z, y: y * z } }];
 }
 
 // Same maths as js/fx/trajectory.js, but over a long flight.
@@ -42,6 +44,12 @@ document.getElementById('f').onload = function () {
   d.getElementById('frontpage_div').style.display = 'none';
   d.getElementById('viewport').style.marginLeft = (opts[0] || '0') + 'px';
   if (opts[1] === 'wave') setInterval(function () { w.PP.spectators.wave(true); }, 1000);
+  if (opts[1] === 'info') setTimeout(function () {
+    var g = w.game, b = g && g.birdSprite && g.birdSprite[0];
+    out.textContent = 'game ' + !!g + ', zoom ' + w.VIEW_ZOOM + ', scale ' + (g && g.getScale()) +
+      ', children ' + (g && g.getChildrenCount()) + ', bird ' + (b ? JSON.stringify(b.getPosition()) + ' visible ' + b.isVisible() : 'none') +
+      ', running ' + !!w.cc.Director.getInstance().getRunningScene();
+  }, 4000);
   if (opts[1] !== 'aim' && opts[1] !== 'check') return;
 
   var aim = null;

@@ -24,8 +24,9 @@
 
   var PIXEL = 4;                               // screen pixels per retro pixel
   var W = 1000 / PIXEL, H = 600 / PIXEL;       // 250 x 150
-  var MAX_CAM = (2400 - 1000) / PIXEL;         // furthest the world scrolls (350)
-  var GROUND_Y = Math.floor((600 - 87) / PIXEL); // top edge of ground.png (128)
+  var ZOOM = (PP.config.view && PP.config.view.zoom) || 1;
+  var MAX_CAM = Math.max(0, (2400 * ZOOM - 1000) / PIXEL); // furthest the world scrolls
+  var GROUND_Y = Math.floor((600 - 87 * ZOOM) / PIXEL);   // top edge of ground.png
   var FOG_W = 400;
 
   var BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];

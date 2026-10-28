@@ -67,12 +67,13 @@
     ctx.clearRect(0, 0, W, H);
     if (alpha <= 0 || !dots.length) return;
     var camera = parseFloat(viewport.style.marginLeft) || 0;
+    var zoom = (PP.config.view && PP.config.view.zoom) || 1;
     var color = powerColor();
     for (var i = 0; i < dots.length; i++) {
       var t = i / Math.max(1, dots.length - 1);  // 0 at the slingshot, 1 at the end
       var size = Math.round(10 - t * 5) & ~1;    // even sizes keep it on the pixel grid
-      var x = Math.round((dots[i].x + camera - size / 2) / 2) * 2;
-      var y = Math.round((H - dots[i].y - size / 2) / 2) * 2;
+      var x = Math.round((dots[i].x * zoom + camera - size / 2) / 2) * 2;
+      var y = Math.round((H - dots[i].y * zoom - size / 2) / 2) * 2;
       if (x < -size || x > W) continue;
       ctx.globalAlpha = alpha * (1 - t * 0.8);
       ctx.fillStyle = C.ink;                       // dark outline so it reads on any sky

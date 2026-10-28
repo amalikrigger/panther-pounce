@@ -5,6 +5,12 @@
 window.PP = window.PP || {};
 
 PP.config = {
+  // Camera. zoom < 1 draws the game world smaller so the slingshot and the
+  // targets fit on screen together. 1 = original close-up camera.
+  view: {
+    zoom: 0.57
+  },
+
   // Animated Halloween background (js/render/parallax.js)
   background: {
     fps: 30, // redraw rate. 30 looks smooth for a sky and saves battery on tablets.

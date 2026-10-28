@@ -15,6 +15,41 @@ function pp_emit(name, data) {
   if (window.PP && PP.emit) PP.emit(name, data);
 }
 
+// Camera zoom. Below 1 the whole world is drawn smaller so the slingshot and
+// the structures fit on screen together (set in js/config.js -> view.zoom).
+// World coordinates (physics, level data) never change; only the drawing does.
+var VIEW_ZOOM = window.PP && PP.config && PP.config.view ? PP.config.view.zoom : 1,
+  VIEW_W = 1000,
+  WORLD_W = 2400,
+  // furthest the camera can scroll left, in screen pixels (0 = slingshot end)
+  MIN_SCROLL = Math.min(0, VIEW_W - WORLD_W * VIEW_ZOOM);
+
+function camera_x() {
+  return parseFloat(document.getElementById("viewport").style.marginLeft) || 0
+}
+
+// Engine touch point (canvas pixels) -> game world point.
+function touch_to_world(touch) {
+  var p = touch.getLocation();
+  return cc.p(p.x / VIEW_ZOOM, p.y / VIEW_ZOOM)
+}
+
+// The engine finds the canvas on the page with offsetLeft/offsetTop, which
+// ignores the screen-fit scaling of #main_div and mixes in the camera scroll.
+// Give it the real numbers so clicks and touches land where the player sees.
+cc.getHTMLElementPosition = (function(original) {
+  return function(el) {
+    if (el !== cc.canvas) return original(el);
+    var box = document.getElementById("main_div").getBoundingClientRect(),
+      scale = cc.Director.getInstance()._contentScaleFactor || 1;
+    return {
+      left: box.left + window.pageXOffset + camera_x() * scale,
+      top: box.top + window.pageYOffset,
+      height: el.height
+    }
+  }
+})(cc.getHTMLElementPosition);
+
 function resize_screen() {
   if (window.innerWidth < 100) return;
   var scaleval = window.innerHeight / 600;
@@ -199,7 +234,7 @@ var b2Body = Box2D.Dynamics.b2Body,
         u;
       r <= 2 || (u = function(n, i) {
         var u, e, f, o;
-        !n || n.getHealth() == n.getFullHealth() && r < 12 || (r > 15 && !n.isDead && n.getObjectRoll() != "Enemy" && !creating_world && (n.getObjectRoll() == "Bird" || n.getObjectRoll() == "Boulder" || game_over ? (u = i.sprite.getPosition(), u.x < 2400 && !game_over && (e = parseInt(document.getElementById("viewport").style.marginLeft), show_smoke(u.x + e, 600 - u.y, 0), u.y > 120 && (f = parseInt(r), f > 1e3 && (f = 1e3), t += f))) : (sounds[sound_instance++].play(), sound_instance > 5 && (sound_instance = 1), last_hit = Math.floor(Date.now() / 1e3))), o = n.getObjectRoll(), o === GameObjectRoll.Enemy && n.damage(r))
+        !n || n.getHealth() == n.getFullHealth() && r < 12 || (r > 15 && !n.isDead && n.getObjectRoll() != "Enemy" && !creating_world && (n.getObjectRoll() == "Bird" || n.getObjectRoll() == "Boulder" || game_over ? (u = i.sprite.getPosition(), u.x < 2400 && !game_over && (e = camera_x(), show_smoke(u.x * VIEW_ZOOM + e, 600 - u.y * VIEW_ZOOM, 0), u.y > 120 && (f = parseInt(r), f > 1e3 && (f = 1e3), t += f))) : (sounds[sound_instance++].play(), sound_instance > 5 && (sound_instance = 1), last_hit = Math.floor(Date.now() / 1e3))), o = n.getObjectRoll(), o === GameObjectRoll.Enemy && n.damage(r))
       }, u(o, f), u(s, e))
     }, {
       toWorld: function(n) {
@@ -270,7 +305,7 @@ var b2Body = Box2D.Dynamics.b2Body,
           if (game.focus_pos >= 3) return;
           c = game.focus_pos >= 0 ? game.birdSprite[game.focus_pos].getPosition() : {
             x: 1200
-          }, r = parseInt(document.getElementById("viewport").style.marginLeft), c.relativeX = c.x + r, c.relativeX > 400 ? (game.focus_pos >= 0 ? (game.birdSprite[game.focus_pos]._position.xprev || (game.birdSprite[game.focus_pos]._position.xprev = 0), v = game.birdSprite[game.focus_pos]._position.x - game.birdSprite[game.focus_pos]._position.xprev, v > 15 && (v = 15), r -= v, game.birdSprite[game.focus_pos]._position.xprev = game.birdSprite[game.focus_pos]._position.x) : r -= 15, r >= -1200 && r <= 0 && (document.getElementById("viewport").style.marginLeft = r + "px")) : c.relativeX < 350 && (r += 15, r > 0 && (r = 0), r <= 0 && (document.getElementById("viewport").style.marginLeft = r + "px"))
+          }, r = camera_x(), c.relativeX = c.x * VIEW_ZOOM + r, c.relativeX > 400 ? (game.focus_pos >= 0 ? (game.birdSprite[game.focus_pos]._position.xprev || (game.birdSprite[game.focus_pos]._position.xprev = 0), v = (game.birdSprite[game.focus_pos]._position.x - game.birdSprite[game.focus_pos]._position.xprev) * VIEW_ZOOM, v > 15 && (v = 15), r -= v, game.birdSprite[game.focus_pos]._position.xprev = game.birdSprite[game.focus_pos]._position.x) : r -= 15, r < MIN_SCROLL && (r = MIN_SCROLL), r <= 0 && (document.getElementById("viewport").style.marginLeft = r + "px")) : c.relativeX < 350 && (r += 15, r > 0 && (r = 0), r <= 0 && (document.getElementById("viewport").style.marginLeft = r + "px"))
         }
       },
       set_game_over: function() {
@@ -353,11 +388,11 @@ var b2Body = Box2D.Dynamics.b2Body,
       resize_screen();
       window.onresize = resize_screen;
       var u, n, t, f, e, i;
-      game ? (document.getElementById("frontpage_div").style.display = "none", document.getElementById("level_select_div").style.display = "none", document.getElementById("preload_div").style.display = "none", this.focus_pos = -2, document.getElementById("viewport").style.marginLeft = "-1000px", setTimeout("pan_back(0);", 3e3)) : (game = this, document.onmouseup = function() {
+      game ? (document.getElementById("frontpage_div").style.display = "none", document.getElementById("level_select_div").style.display = "none", document.getElementById("preload_div").style.display = "none", this.focus_pos = -2, document.getElementById("viewport").style.marginLeft = MIN_SCROLL + "px", setTimeout("pan_back(0);", 3e3)) : (game = this, document.onmouseup = function() {
         game.isPanning = !1
       }, document.ontouchend = function() {
         game.isPanning = !1
-      }, document.getElementById("play_button").onclick = show_level_select, document.getElementById("play_button").innerHTML = '<img src="sprites/play.png">', document.getElementById("viewport").style.cursor = "url('sprites/cursor_open.cur'), pointer"), document.getElementById("win_popup").style.display = "none", document.getElementById("lose_popup").style.display = "none", this._super(), this.removeAllChildrenWithCleanup(!0), this.setTouchEnabled(!0), this.current_bird = 0;
+      }, document.getElementById("play_button").onclick = show_level_select, document.getElementById("play_button").innerHTML = '<img src="sprites/play.png">', document.getElementById("viewport").style.cursor = "url('sprites/cursor_open.cur'), pointer"), document.getElementById("win_popup").style.display = "none", document.getElementById("lose_popup").style.display = "none", this._super(), this.removeAllChildrenWithCleanup(!0), this.setTouchEnabled(!0), this.setAnchorPoint(cc.p(0, 0)), this.setScale(VIEW_ZOOM), this.current_bird = 0;
       var r = cc.Director.getInstance(),
         o = this,
         s = r.getWinSize();
@@ -1699,7 +1734,7 @@ var b2Body = Box2D.Dynamics.b2Body,
       if (!game_over) {
         if (this.isDraggingSling) return this.onTouchesEnded(n, t);
         if (this.current_bird < 3) {
-          var i = n[0].getLocation(),
+          var i = touch_to_world(n[0]),
             r = cc.pSub(this.birdStartPos, i);
           (this.isDraggingSling = cc.pLength(r) < this.slingRadius.max) && !this.birdSprite[this.current_bird].body && !this.slingRubber3 && (this.slingRubber3 = this.addObject({
             name: "sling3",
@@ -1712,7 +1747,7 @@ var b2Body = Box2D.Dynamics.b2Body,
           }))
         }
         this.isDraggingSling ? document.getElementById("viewport").style.cursor = "url('sprites/cursor_hold.cur'), pointer" : (this.isPanning = {
-          x: n[0]._point.x * cc.Director.getInstance()._contentScaleFactor,
+          x: n[0].getLocation().x,
           start: 0
         }, this.focus_pos = -2)
       }
@@ -1721,13 +1756,13 @@ var b2Body = Box2D.Dynamics.b2Body,
       var f, r, e, o;
       if (this.isPanning) {
         f = {
-          x: n[0]._point.x * cc.Director.getInstance()._contentScaleFactor
-        }, r = -(this.isPanning.start + (this.isPanning.x - (f.x + parseInt(document.getElementById("viewport").style.marginLeft)))), r > 0 && (r = 0), r < -1200 && (r = -1200), document.getElementById("viewport").style.marginLeft = r + "px", this.focus_pos = -2;
+          x: n[0].getLocation().x
+        }, r = -(this.isPanning.start + (this.isPanning.x - (f.x + camera_x()))), r > 0 && (r = 0), r < MIN_SCROLL && (r = MIN_SCROLL), document.getElementById("viewport").style.marginLeft = r + "px", this.focus_pos = -2;
         return
       }
       if (this.isDraggingSling && !(this.current_bird >= 3) && !this.birdSprite[this.current_bird].body) {
         this.slingRubber1.setVisible(!0), this.slingRubber2.setVisible(!0), this.slingRubber3.setVisible(!0);
-        var f = n[0].getLocation(),
+        var f = touch_to_world(n[0]),
           s = cc.pSub(f, this.birdStartPos),
           u = cc.pLength(s),
           i = cc.pToAngle(s);
