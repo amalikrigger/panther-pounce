@@ -40,6 +40,8 @@ PALETTE = {
     'toxic': '#7cff4f', 'toxicdk': '#2f6e2a',
     'ghost': '#eae6ff', 'ghostlo': '#a99fd6',
     'ghoul': '#6fcf4a', 'ghoulhi': '#a6ef7a', 'ghoullo': '#3e8f34', 'ghouldk': '#24582a',
+    'zomb': '#8fa77a', 'zombhi': '#b5c99a', 'zomblo': '#5f7550', 'zombdk': '#3b4a33',
+    'brain': '#e58fb0', 'brainlo': '#b0587e',
     'hair': '#1b1424', 'fur': '#1b1424', 'furhi': '#3a2d4d',
     'stone': '#6d6a78', 'stonehi': '#9a97a6', 'stonelo': '#45424f', 'mortar': '#2c2a33',
     'wood': '#6b4226', 'woodhi': '#8f5e36', 'woodlo': '#432814', 'wooddk': '#2a170b',
@@ -310,8 +312,35 @@ def panther():
     return g.outline('gold')
 
 
-def ghoul():
-    """Enemy: a round Frankenstein ghoul with neck bolts. Circle body."""
+HEXCAT = [
+    '............',
+    '.P........P.',
+    '.PiP....PiP.',
+    '.PPGPGGPGPP.',
+    '.PPPPPPPPPP.',
+    '.PTTPPPPTTP.',
+    '.PTBPPPPBTP.',
+    '.PPPPPPPPPP.',
+    '.PhPPNNPPhP.',
+    '..PPWPPWPP..',
+    '...PPPPPP...',
+    '............',
+]
+
+
+def hexcat():
+    """Split bird: a smaller plum hex-cub with toxic eyes and three gold
+    stripes (one for each copy it splits into). Rimmed in toxic green."""
+    g = Img(12, 12)
+    g.ascii(0, 0, HEXCAT, {'P': 'plum', 'i': 'maroon', 'G': 'gold', 'T': 'toxic',
+                           'B': 'black', 'h': 'violet', 'N': 'pumpkin', 'W': 'bone'})
+    return g.outline('toxic')
+
+
+def ghoul(stage=0):
+    """Enemy: a round Frankenstein ghoul with neck bolts. Circle body.
+    stage 1 = roughed up (black eye, plaster, frown),
+    stage 2 = nearly beaten (both eyes squeezed shut, head bandage, lost bolt)."""
     g = Img(26, 26)
     cx, cy, r = 13, 14, 10.5
     for y in range(26):
@@ -329,22 +358,145 @@ def ghoul():
     for x in range(5, 21, 2):                   # fringe
         g.set(x, 8, 'hair')
     for bx in (1, 22):                          # neck bolts
+        if stage == 2 and bx == 22:             # one bolt knocked out
+            g.rect(22, 16, 2, 1, 'ghouldk')
+            continue
         g.rect(bx, 15, 3, 3, 'iron')
         g.set(bx, 15, 'ironhi')
-    g.rect(6, 10, 14, 1, 'hair')                # unibrow
-    g.rect(7, 11, 4, 3, 'white')
-    g.rect(15, 11, 4, 3, 'white')
-    g.rect(7, 12, 2, 2, 'black')                # looking toward the slingshot
-    g.rect(15, 12, 2, 2, 'black')
+    if stage >= 1:                              # black eye
+        g.rect(6, 10, 6, 5, 'plum')
+    if stage == 2:
+        g.rect(14, 10, 6, 5, 'plum')
+        g.line(6, 10, 10, 9, 'hair')            # worried brows
+        g.line(15, 9, 19, 10, 'hair')
+        g.line(7, 11, 10, 12, 'black')          # eyes squeezed shut: > <
+        g.line(10, 12, 7, 13, 'black')
+        g.line(18, 11, 15, 12, 'black')
+        g.line(15, 12, 18, 13, 'black')
+    else:
+        g.rect(6, 10, 14, 1, 'hair')            # unibrow
+        if stage == 1:
+            g.rect(7, 12, 4, 1, 'hair')         # swollen, half-shut
+            g.rect(7, 13, 4, 1, 'white')
+            g.set(7, 13, 'black')
+        else:
+            g.rect(7, 11, 4, 3, 'white')
+            g.rect(7, 12, 2, 2, 'black')        # looking toward the slingshot
+        g.rect(15, 11, 4, 3, 'white')
+        g.rect(15, 12, 2, 2, 'black')
     g.line(19, 15, 19, 19, 'ghouldk')           # stitched scar
     for yy in (16, 18):
         g.set(18, yy, 'ghouldk')
         g.set(20, yy, 'ghouldk')
-    g.rect(9, 18, 8, 2, 'black')                # grin
-    g.set(8, 17, 'black')
-    g.set(17, 17, 'black')
-    g.set(10, 18, 'bone')
-    g.set(15, 18, 'bone')
+    if stage == 0:
+        g.rect(9, 18, 8, 2, 'black')            # grin
+        g.set(8, 17, 'black')
+        g.set(17, 17, 'black')
+        g.set(10, 18, 'bone')
+        g.set(15, 18, 'bone')
+    elif stage == 1:
+        g.rect(10, 18, 6, 1, 'black')           # frown
+        g.set(9, 19, 'black')
+        g.set(16, 19, 'black')
+        g.rect(14, 5, 6, 2, 'bone')             # sticking plaster
+        g.set(16, 5, 'ghostlo')
+        g.set(17, 6, 'ghostlo')
+        g.set(5, 16, 'plum')                    # bruised cheek
+        g.set(6, 17, 'plum')
+    else:
+        g.rect(9, 17, 8, 3, 'black')            # wobbly open mouth, one tooth left
+        g.set(9, 17, 'ghoul')
+        g.set(16, 19, 'ghoul')
+        g.set(11, 17, 'bone')
+        g.rect(3, 7, 20, 2, 'bone')             # head bandage
+        for x in range(4, 22, 3):
+            g.set(x, 8, 'ghostlo')
+        g.set(23, 6, 'bone')
+        g.set(24, 5, 'bone')
+        g.line(5, 15, 7, 18, 'ghouldk')         # second scar
+        g.set(4, 16, 'ghouldk')
+        g.set(8, 17, 'ghouldk')
+        g.rect(3, 11, 1, 2, 'ghost')            # sweat drop
+        g.set(3, 10, 'ghostlo')
+    return g.outline('black')
+
+
+def zombie(stage=0):
+    """World 2 enemy: a round, rotten zombie head with a peek of brain and
+    mismatched eyes. Same size and circle body as the ghoul.
+    stage 1 = roughed up, stage 2 = nearly beaten (same idea as the ghoul)."""
+    g = Img(26, 26)
+    cx, cy, r = 13, 14, 10.5
+    for y in range(26):
+        for x in range(26):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            if dx * dx + dy * dy <= r * r:
+                col = 'zomb'
+                if dx + dy > r * 0.8:
+                    col = 'zomblo'
+                elif dx + dy < -r * 0.9:
+                    col = 'zombhi'
+                g.set(x, y, col)
+    for x, y in ((6, 18), (7, 19), (6, 19), (20, 13), (19, 14), (21, 15)):
+        g.set(x, y, 'zombdk')                   # rotten patches
+    g.ellipse(9, 6, 4.5, 2.5, 'brain')          # brain peeking through
+    for x, y in ((6, 6), (8, 5), (9, 7), (11, 6), (10, 5)):
+        g.set(x, y, 'brainlo')
+    for x, y, h in ((14, 4, 2), (16, 3, 3), (18, 4, 2), (20, 5, 2)):
+        g.rect(x, y, 2, h, 'hair')              # messy tufts
+    g.set(17, 2, 'hair')
+    g.set(21, 4, 'hair')
+    g.rect(6, 10, 5, 4, 'zombdk')               # sunken eye sockets
+    g.rect(15, 10, 5, 4, 'zombdk')
+    if stage >= 1:
+        g.rect(5, 9, 7, 6, 'plum')              # black eye
+        g.rect(6, 10, 5, 4, 'zombdk')
+    if stage == 2:
+        g.rect(14, 9, 7, 6, 'plum')
+        g.rect(15, 10, 5, 4, 'zombdk')
+        g.line(7, 10, 10, 11, 'black')          # eyes squeezed shut: > <
+        g.line(10, 11, 7, 12, 'black')
+        g.line(19, 10, 16, 11, 'black')
+        g.line(16, 11, 19, 12, 'black')
+    else:
+        if stage == 1:
+            g.rect(7, 11, 3, 1, 'hair')         # swollen, half-shut
+            g.rect(7, 12, 3, 1, 'white')
+        else:
+            g.rect(7, 11, 3, 2, 'white')        # small beady eye
+            g.set(7, 12, 'blood')
+        g.rect(16, 11, 3, 3, 'white')           # big droopy eye
+        g.rect(16, 12, 2, 2, 'black')
+    g.set(12, 15, 'zombdk')                     # nostrils
+    g.set(14, 15, 'zombdk')
+    if stage == 0:
+        g.rect(8, 18, 10, 2, 'black')           # crooked moan
+        g.set(7, 17, 'black')
+        g.set(18, 19, 'black')
+        for x in (9, 11, 14, 16):
+            g.set(x, 18, 'bone')
+        g.rect(17, 20, 1, 2, 'toxic')           # drool
+    elif stage == 1:
+        g.rect(9, 18, 8, 1, 'black')            # frown, a tooth missing
+        g.set(8, 19, 'black')
+        g.set(17, 19, 'black')
+        g.set(11, 18, 'bone')
+        g.set(15, 18, 'bone')
+        g.rect(17, 15, 4, 2, 'bone')            # sticking plaster on the cheek
+        g.set(18, 15, 'ghostlo')
+        g.set(19, 16, 'ghostlo')
+    else:
+        g.rect(9, 17, 8, 3, 'black')            # wobbly open mouth
+        g.set(9, 17, 'zomb')
+        g.set(16, 19, 'zomb')
+        g.set(12, 17, 'bone')
+        g.rect(3, 6, 20, 2, 'bone')             # head bandage over the brain
+        for x in range(4, 22, 3):
+            g.set(x, 7, 'ghostlo')
+        g.set(23, 5, 'bone')
+        g.set(24, 4, 'bone')
+        g.rect(3, 11, 1, 2, 'ghost')            # sweat drop
+        g.set(3, 10, 'ghostlo')
     return g.outline('black')
 
 
@@ -433,6 +585,82 @@ def plank():
     return g
 
 
+GLASS = ('#9fd8ff', 120)      # see-through haunted glass
+GLASS_EDGE = ('#d8f2ff', 230)
+GLASS_RIM = ('#4a6fa8', 255)
+GLASS_SHINE = ('#ffffff', 200)
+
+
+def glass_block():
+    """Glass block (glass1): see-through, breaks on the first real hit."""
+    g = Img(27, 27, GLASS)
+    for side in ((0, 0, 27, 2), (0, 25, 27, 2), (0, 0, 2, 27), (25, 0, 2, 27)):
+        g.rect(*side, GLASS_EDGE)
+    for side in ((0, 0, 27, 1), (0, 26, 27, 1), (0, 0, 1, 27), (26, 0, 1, 27)):
+        g.rect(*side, GLASS_RIM)
+    g.line(4, 13, 13, 4, GLASS_SHINE, 2)        # shine streaks
+    g.line(5, 19, 19, 5, GLASS_SHINE)
+    g.line(15, 22, 22, 15, ('#ffffff', 120))
+    for x, y in ((21, 4), (22, 5), (4, 22)):    # frost specks
+        g.set(x, y, GLASS_EDGE)
+    return g
+
+
+def glass_plank():
+    """Glass plank (glass2)."""
+    g = Img(67, 6, GLASS)
+    g.rect(0, 1, 67, 1, GLASS_EDGE)
+    for x in range(4, 64, 14):                  # shine dashes
+        g.rect(x, 2, 5, 1, GLASS_SHINE)
+    g.rect(0, 0, 67, 1, GLASS_RIM)
+    g.rect(0, 5, 67, 1, GLASS_RIM)
+    g.rect(0, 0, 1, 6, GLASS_RIM)
+    g.rect(66, 0, 1, 6, GLASS_RIM)
+    return g
+
+
+def crack(g, pts, edge='woodhi'):
+    """Jagged crack through a list of points: black split with a pale edge."""
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        g.line(x0 + 1, y0, x1 + 1, y1, edge)
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        g.line(x0, y0, x1, y1, 'black')
+
+
+def chip(g, cells):
+    """Knock pixels out (splintered-off corners)."""
+    for x, y in cells:
+        g.px[y][x] = None
+
+
+def crate_damaged(stage):
+    """wood1 after hits: stage 1 cracked, stage 2 splitting apart."""
+    g = crate()
+    crack(g, [(13, 0), (15, 5), (12, 10), (14, 14)])
+    chip(g, [(26, 26), (25, 26), (26, 25)])
+    if stage >= 2:
+        crack(g, [(0, 17), (6, 15), (9, 19), (16, 18), (19, 22), (19, 26)])
+        crack(g, [(26, 4), (21, 7), (22, 11), (18, 13)])
+        crack(g, [(14, 14), (16, 17)])
+        chip(g, [(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (0, 2),
+                 (26, 0), (25, 0), (26, 1), (0, 26), (1, 26), (0, 25)])
+        for x, y in ((5, 5), (20, 20), (8, 22)):
+            g.set(x, y, 'wooddk')
+    return g
+
+
+def plank_damaged(stage):
+    """wood2 after hits: stage 1 cracked, stage 2 about to snap."""
+    g = plank()
+    crack(g, [(20, 0), (22, 2), (21, 5)])
+    if stage >= 2:
+        crack(g, [(44, 0), (46, 2), (45, 4), (47, 5)])
+        crack(g, [(9, 5), (11, 3), (10, 2)])
+        crack(g, [(56, 0), (55, 3)])
+        chip(g, [(33, 0), (34, 0), (35, 0), (52, 5), (53, 5), (0, 0), (66, 5)])
+    return g
+
+
 def masonry(w, h, seed, moss=True):
     """Weathered crypt stone bricks (dirt / platform)."""
     rnd = random.Random(seed)
@@ -470,6 +698,22 @@ def masonry(w, h, seed, moss=True):
             g.rect(x, 0, 1, d, 'moss')
             if d:
                 g.set(x, 0, 'mosshi')
+    return g
+
+
+def masonry_damaged(stage):
+    """dirt (stone block) after hits: stage 1 cracked, stage 2 crumbling."""
+    g = masonry(27, 27, 3)
+    crack(g, [(8, 0), (10, 4), (7, 9), (11, 14)], edge='stonehi')
+    chip(g, [(26, 0), (25, 0), (26, 1)])
+    if stage >= 2:
+        crack(g, [(26, 9), (20, 11), (18, 16), (12, 18), (10, 26)], edge='stonehi')
+        crack(g, [(0, 20), (5, 19), (7, 23)], edge='stonehi')
+        crack(g, [(11, 14), (14, 15)], edge='stonehi')
+        chip(g, [(0, 0), (1, 0), (2, 0), (0, 1), (1, 1), (0, 2), (26, 26), (25, 26),
+                 (24, 26), (26, 25), (25, 25), (26, 24), (0, 26), (1, 26), (13, 0), (14, 0)])
+        for x, y in ((4, 5), (21, 21), (16, 7)):
+            g.set(x, y, 'mortar')
     return g
 
 
@@ -673,7 +917,7 @@ def popup(won):
     g.blit(deco, 10, 96 - deco.h)
     g.blit(deco, 261 - deco.w, 96 - deco.h)
     if won:
-        spots = [(33, 'grid'), (110, 'restart'), (187, 'next')]
+        spots = [(33, 'grid'), (110, 'next'), (187, 'restart')]
     else:
         spots = [(82, 'grid'), (159, 'restart')]
     for x, kind in spots:
@@ -885,10 +1129,24 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     print('Writing sprites to', OUT_DIR)
     panther().save('bird.png', 45, 44)
+    hexcat().save('bird_split.png', 36, 36)
     ghoul().save('enemy.png', 78, 77)
+    ghoul(1).save('enemy_dmg1.png', 78, 77)
+    ghoul(2).save('enemy_dmg2.png', 78, 77)
+    zombie().save('zombie.png', 78, 77)
+    zombie(1).save('zombie_dmg1.png', 78, 77)
+    zombie(2).save('zombie_dmg2.png', 78, 77)
     crate().save('wood1.png', 81, 81)
+    crate_damaged(1).save('wood1_dmg1.png', 81, 81)
+    crate_damaged(2).save('wood1_dmg2.png', 81, 81)
     plank().save('wood2.png', 202, 19)
+    plank_damaged(1).save('wood2_dmg1.png', 202, 19)
+    plank_damaged(2).save('wood2_dmg2.png', 202, 19)
+    glass_block().save('glass1.png', 81, 81)
+    glass_plank().save('glass2.png', 202, 19)
     masonry(27, 27, 3).save('dirt.png', 81, 81)
+    masonry_damaged(1).save('dirt_dmg1.png', 81, 81)
+    masonry_damaged(2).save('dirt_dmg2.png', 81, 81)
     jack().save('boulder.png', 76, 73)
     crypt().save('platform.png', 191, 195)
     sling_back().save('sling1.png', 38, 199)

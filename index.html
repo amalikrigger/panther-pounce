@@ -7,6 +7,7 @@
 <link rel="stylesheet" type="text/css" href="css/theme.css" />
 <link rel="stylesheet" type="text/css" href="style.css" />
 <script defer src="js/config.js"></script>
+<script defer src="js/levels/world2.js"></script>
 <script defer src="js/core/events.js"></script>
 <script defer src="js/render/parallax.js"></script>
 <script defer src="js/render/spectators.js"></script>
@@ -19,6 +20,17 @@
   </div>
 
   <div id="level_select_div"></div>
+
+  <!-- Who's playing? (game.js show_name_entry) -->
+  <div id="name_div">
+    <div class="name_title">WHO'S POUNCING?</div>
+    <input id="name_input" type="text" maxlength="15" autocomplete="off" spellcheck="false" aria-label="Player name" onkeydown="if (event.key == 'Enter') submit_name();">
+    <div class="pp_button name_ok" onclick="submit_name();">START</div>
+    <div class="name_hint">TYPE YOUR NAME, THEN PRESS ENTER</div>
+  </div>
+
+  <!-- Level winners log (game.js show_winners) -->
+  <div id="winners_div"></div>
 
   <div id="game_div">
     <canvas id="viewport" width="2400px" height="600px"></canvas>

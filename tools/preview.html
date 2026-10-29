@@ -38,6 +38,75 @@ function yAt(path, x) {
   return null;
 }
 
+// Load a level and let it settle like the real game: 2 s with no damage, then live.
+function loadLevel(w, n) {
+  w.level_number = n; w.game.init(); w.creating_world = true;
+  var start = w.game.getChildren().map(function (s) { var p = s.getPosition(); return { x: p.x, y: p.y }; });
+  for (var s = 0; s < 120; s++) w.b2.simulate();
+  w.creating_world = false;
+  return start;
+}
+
+function tally(w) {
+  var t = { zombies: 0, alive: 0, broken: 0, glass: 0, hurt: 0, minX: 1e9, maxX: -1e9 }, c = w.game.getChildren();
+  for (var i = 0; i < c.length; i++) {
+    var s = c[i], n = s.ppName, alive = s.body && s.body.GetUserData();
+    if (n === 'zombie' || n === 'enemy') {
+      t.zombies++; alive && t.alive++; alive && s.ppHurt && t.hurt++;
+      if (alive) { var r = s.getContentSize().height * s.getScaleY() / 2; t.minX = Math.min(t.minX, Math.round(s.getPosition().x - r)); t.maxX = Math.max(t.maxX, Math.round(s.getPosition().x + r)); }
+    }
+    if (/^(wood|glass|dirt)/.test(n) && s.body && !alive) { t.broken++; /glass/.test(n) && t.glass++; }
+    if (/^(wood|dirt)/.test(n) && alive && s.ppHurt) t.hurt++;
+  }
+  return t;
+}
+
+// Every level from..to-1: does it stand still on its own for 10 seconds?
+function stableReport(w, from, to) {
+  var lines = [];
+  for (var n = from; n < to; n++) {
+    var start = loadLevel(w, n), c = w.game.getChildren(), moved = 0;
+    for (var s = 0; s < 600; s++) w.b2.simulate();
+    c.forEach(function (s, i) {
+      if (s.body && s.body.GetUserData()) moved = Math.max(moved, Math.round(w.cc.pLength(w.cc.pSub(s.getPosition(), start[i]))));
+    });
+    var t = tally(w);
+    lines.push('level ' + (n + 1) + ': zombies ' + t.alive + '/' + t.zombies + ', broken ' + t.broken + ', hurt ' + t.hurt + ', max drift ' + moved + ' px, birds ' + w.game.birdCount + (w.game_over ? ' GAME OVER' : ''));
+  }
+  return lines.join('\n');
+}
+
+// #0,shot,<level>,<pullX>,<pullY>[,<splitAfterSteps>[,<birdIndex>]]
+function shotReport(w, a) {
+  loadLevel(w, a[0]);
+  var g = w.game;
+  g.current_bird = a[4] || 0;
+  var b = g.birdSprite[g.current_bird];
+  b.stopAllActions(); b.setPosition(g.birdStartPos);
+  g.onTouchesBegan(fakeTouch(w, 190, 210));
+  g.onTouchesMoved(fakeTouch(w, a[1], a[2]));
+  g.onTouchesEnded();
+  var split = '';
+  for (var s = 0; s < 600; s++) {
+    if (a[3] && s === a[3]) split = g.trySplit() ? ' split at ' + JSON.stringify(b.getPosition()) : ' split refused';
+    w.b2.simulate();
+  }
+  var t = tally(w);
+  return 'shot level ' + (a[0] + 1) + ': grabbed ' + (b.body ? 'yes' : 'no') + split + ', zombies left ' + t.alive + '/' + t.zombies +
+    ', broken ' + t.broken + ' (glass ' + t.glass + '), hurt ' + t.hurt + ', enemy edges ' + t.minX + '..' + t.maxX + ', score ' + w.b2.getUserScore() + ', children ' + g.getChildrenCount();
+}
+
+// #0,dump,<level>: after 10 s, list everything that moved more than 10 px.
+function dumpReport(w, n) {
+  var start = loadLevel(w, n), c = w.game.getChildren(), lines = [];
+  for (var s = 0; s < 600; s++) w.b2.simulate();
+  c.forEach(function (s, i) {
+    var p = s.getPosition(), d = w.cc.pLength(w.cc.pSub(p, start[i]));
+    if (s.body && d > 10) lines.push(s.ppName + ' ' + Math.round(start[i].x) + ',' + Math.round(start[i].y) + ' -> ' + Math.round(p.x) + ',' + Math.round(p.y) + (s.body.GetUserData() ? '' : ' GONE'));
+  });
+  return lines.join('\n') || 'nothing moved';
+}
+
 document.getElementById('f').onload = function () {
   var d = this.contentDocument, w = this.contentWindow;
   var opts = location.hash.slice(1).split(',');
@@ -48,8 +117,23 @@ document.getElementById('f').onload = function () {
     var g = w.game, b = g && g.birdSprite && g.birdSprite[0];
     out.textContent = 'game ' + !!g + ', zoom ' + w.VIEW_ZOOM + ', scale ' + (g && g.getScale()) +
       ', children ' + (g && g.getChildrenCount()) + ', bird ' + (b ? JSON.stringify(b.getPosition()) + ' visible ' + b.isVisible() : 'none') +
-      ', running ' + !!w.cc.Director.getInstance().getRunningScene();
+      ', running ' + !!w.cc.Director.getInstance().getRunningScene() + ', music ' + decodeURI(w.music.src.split('/').pop());
   }, 4000);
+  if (opts[1] === 'select') { w.show_level_select(+(opts[2] || 0)); return; }
+  // name screen, then: level select with a name, winners log, and a win popup (storage is put back after)
+  if (opts[1] === 'name') { setTimeout(function () { w.show_name_entry(); w.document.getElementById('name_input').value = 'Liam'; }, 1500); return; }
+  if (opts[1] === 'winners' || opts[1] === 'tag' || opts[1] === 'win') setTimeout(function () {
+    var keep = { p: w.storage.pp_player, l: w.storage.pp_winners, a: w.storage.ab_level_17 };
+    w.storage.pp_player = 'Liam <b>McHale'; w.level_number = 17; w.game.init(); w.game.levelStart = Date.now() - 83000;
+    if (opts[1] === 'win') w.b2.set_game_over(); else w.log_winner(12345, 3);
+    if (opts[1] === 'winners') w.show_winners();
+    if (opts[1] === 'tag') w.show_level_select(1);
+    ['pp_player', 'pp_winners', 'ab_level_17'].forEach(function (k, i) { var v = [keep.p, keep.l, keep.a][i]; v === undefined ? w.storage.removeItem(k) : w.storage[k] = v; });
+  }, 1500);
+  if (opts[1] === 'level') setTimeout(function () { w.level_number = +opts[2]; w.game.init(); }, 500);
+  if (opts[1] === 'stable') setTimeout(function () { out.textContent = stableReport(w, +(opts[2] || 15), +(opts[3] || 30)); }, 1500);
+  if (opts[1] === 'shot') setTimeout(function () { out.textContent = shotReport(w, opts.slice(2).map(Number)); }, 1500);
+  if (opts[1] === 'dump') setTimeout(function () { out.textContent = dumpReport(w, +opts[2]); }, 1500);
   if (opts[1] !== 'aim' && opts[1] !== 'check') return;
 
   var aim = null;

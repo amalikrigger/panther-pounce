@@ -7,8 +7,50 @@ try {
 // "sling:aim" event, so the aiming arc always matches the real flight.
 var GRAVITY = 10, // metres per second squared (Box2D world)
   PHYSICS_STEP = 1 / 60,
-  LAUNCH_POWER = 12, // impulse per pixel of slingshot pull
-  BIRD_DENSITY = 15;
+  LAUNCH_POWER = 10.5, // impulse per pixel of slingshot pull (was 12; lower = slower panthers)
+  BIRD_DENSITY = 15,
+  // The split bird is smaller (radius 18 vs 22), so it is denser to weigh
+  // the same and fly the same arc. Each of its three pieces weighs half.
+  SPLIT_DENSITY = BIRD_DENSITY * (22 / 18) * (22 / 18),
+  SPLIT_ANGLE = cc.DEGREES_TO_RADIANS(12);
+
+// Breakable blocks (tweak in js/config.js -> damage).
+var DAMAGE = window.PP && PP.config && PP.config.damage || {},
+  WOOD_MIN_IMPULSE = DAMAGE.woodMinImpulse || 8, // softer bumps don't hurt wood
+  WOOD_DAMAGE_SCALE = DAMAGE.woodScale || 5, // wood has 2000 health
+  GLASS_MIN_IMPULSE = DAMAGE.glassMinImpulse || 4, // any real hit shatters glass
+  // stone ("dirt") blocks: movable, heavy, and take about 3x the hits of wood
+  STONE_HEALTH = DAMAGE.stoneHealth || 6000,
+  STONE_MIN_IMPULSE = DAMAGE.stoneMinImpulse || 15,
+  STONE_DENSITY = DAMAGE.stoneDensity || 4,
+  STONE_FRICTION = DAMAGE.stoneFriction || .9,
+  // how far outside the bird a click still grabs it (screen pixels)
+  SLING_GRAB_MARGIN = window.PP && PP.config && PP.config.sling ? PP.config.sling.grabMargin : 18,
+  // enemies must stay between these world x positions (js/config.js -> enemyArea).
+  // The right edge defaults to the edge of the screen when the camera is at the slingshot.
+  ENEMY_AREA = window.PP && PP.config && PP.config.enemyArea || {},
+  ENEMY_MIN_X = ENEMY_AREA.minX || 900,
+  ENEMY_MAX_X = ENEMY_AREA.maxX || 1000 / (window.PP && PP.config && PP.config.view ? PP.config.view.zoom : 1),
+  // things with hurt looks: sprites/<name>_dmg1.png and <name>_dmg2.png
+  HURT_LOOKS = {
+    wood1: 1,
+    wood2: 1,
+    dirt: 1,
+    enemy: 1,
+    zombie: 1
+  };
+
+// Big levels. Each world has 15 levels; level_number counts through all of
+// them (world 2 level 1 = level_number 15). World 2 lives in js/levels/world2.js.
+var LEVELS_PER_WORLD = 15,
+  WORLDS = [{
+    name: "GRAVEYARD",
+    birds: ["bird", "bird", "bird"]
+  }, {
+    name: "WITCHING HOUR",
+    birds: ["bird", "bird_split", "bird", "bird_split"]
+  }],
+  current_world = 0;
 
 // Tell the Halloween add-ons (js/) what is happening in the game.
 function pp_emit(name, data) {
@@ -62,25 +104,116 @@ function show_frontpage(n) {
   document.getElementById("frontpage_div").style.display = n ? "block" : "none"
 }
 
-function show_level_select() {
-  for (var n = '<center>SELECT LEVEL:<br><br><table style="width:100%:">', t = 0, o = !0, e, i, r, u, f = 0; f < 3; f++) {
+// w = world to show. Without a number (play button, popups) it shows the
+// world of the level just played.
+function show_level_select(w) {
+  current_world = typeof w == "number" ? w : Math.floor(level_number / LEVELS_PER_WORLD);
+  for (var n = '<center>WORLD ' + (current_world + 1) + ": " + WORLDS[current_world].name + '<br><br><table class="world-' + (current_world + 1) + '">', t = current_world * LEVELS_PER_WORLD, o = !0, e, i, r, u, f = 0; f < 3; f++) {
     for (n += "<tr>", e = 0; e < 5; e++) {
       if (!storage["ab_level_" + t]) r = !1, i = "&nbsp;";
       else
         for (i = "", r = storage["ab_level_" + t].split(":")[1], u = 0; u <= 2; u++) i += r > u ? "&#9733;" : "&#9734;";
-      n += '<td onclick="start_game(' + t + ');">' + (o ? t + 1 + '<div style="margin-top:-19px;">' + i + "<\/div><\/td>" : '<img src="sprites/lock.png">'), t++, r || (o = !1)
+      n += '<td onclick="start_game(' + t + ');">' + (o ? t % LEVELS_PER_WORLD + 1 + '<div style="margin-top:-19px;">' + i + "<\/div><\/td>" : '<img src="sprites/lock.png">'), t++, r || (o = !1)
     }
     n += "<\/tr>"
   }
-  n += "<\/table><\/center>", document.getElementById("level_select_div").innerHTML = n, document.getElementById("level_select_div").style.display = "block"
+  n += "<\/table><\/center>";
+  n += '<div id="player_tag" title="Change player" onclick="show_name_entry();">PLAYER<br><span>' + esc_html(player_name()) + '<\/span><\/div><div id="winners_button" class="pp_button" onclick="show_winners();">WINNERS<\/div>';
+  current_world > 0 && (n += '<div class="world_arrow world_prev" title="Previous world" onclick="show_level_select(' + (current_world - 1) + ');"><\/div>');
+  current_world < WORLDS.length - 1 && (n += '<div class="world_arrow world_next" title="Next world" onclick="show_level_select(' + (current_world + 1) + ');"><\/div>');
+  document.getElementById("level_select_div").innerHTML = n, document.getElementById("level_select_div").style.display = "block"
 }
 
+// The first level of every world is always open; the rest unlock in order.
 function start_game(n) {
-  n > 0 && !storage["ab_level_" + (n - 1)] || (level_number = n, game.init())
+  play_music();
+  n % LEVELS_PER_WORLD != 0 && !storage["ab_level_" + (n - 1)] || (level_number = n, game.init())
+}
+
+// Spooky music loop. Browsers only allow sound after a click, so it starts
+// when the player does something. Song list and volume: js/config.js -> music.
+function play_music() {
+  var v = window.PP && PP.config && PP.config.music ? PP.config.music.volume : .3;
+  if (!v) return;
+  music.ppWanted = !0;
+  if (!music.paused) return;
+  music.loop = !0, music.volume = v;
+  var p = music.play();
+  p && p.catch && p.catch(function() {})
+}
+
+// Player names and the winners log are shown on screen, so never trust them as HTML.
+function esc_html(s) {
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c]
+  })
+}
+
+function player_name() {
+  return storage.pp_player || "GUEST"
+}
+
+// "Who's pouncing?" screen: shown after PLAY, or by clicking the name on the level select.
+function show_name_entry() {
+  var i = document.getElementById("name_input");
+  play_music();
+  document.getElementById("level_select_div").style.display = "none";
+  document.getElementById("name_div").style.display = "block";
+  i.value = storage.pp_player || "";
+  i.focus(), i.select()
+}
+
+function submit_name() {
+  var i = document.getElementById("name_input"),
+    v = i.value.replace(/[\x00-\x1f\x7f]/g, "").trim().slice(0, 15);
+  if (!v) return i.focus();
+  storage.pp_player = v;
+  document.getElementById("name_div").style.display = "none";
+  show_level_select()
+}
+
+// Winners log: every level cleared on this computer (newest 50 kept).
+function load_winners() {
+  try {
+    var w = JSON.parse(storage.pp_winners || "[]");
+    return w instanceof Array ? w : []
+  } catch (e) {
+    return []
+  }
+}
+
+function log_winner(score, stars) {
+  var w = load_winners(),
+    s = Math.round((Date.now() - game.levelStart) / 1e3),
+    r = {
+      level: Math.floor(level_number / LEVELS_PER_WORLD) + 1 + "-" + (level_number % LEVELS_PER_WORLD + 1),
+      player: player_name(),
+      score: score,
+      stars: stars,
+      time: Math.floor(s / 60) + ":" + ("0" + s % 60).slice(-2)
+    };
+  w.push(r), storage.pp_winners = JSON.stringify(w.slice(-50));
+  return r
+}
+
+function show_winners() {
+  var w = load_winners().slice(-10).reverse(),
+    h = '<center>LEVEL WINNERS LOG<br><br><table class="winners_table"><tr><th>LEVEL<\/th><th>PLAYER<\/th><th>SCORE<\/th><th>TIME<\/th><\/tr>',
+    k;
+  for (k = 0; k < w.length; k++) h += "<tr><td>" + esc_html(w[k].level) + "<\/td><td>" + esc_html(w[k].player) + "<\/td><td>" + esc_html(w[k].score) + "<\/td><td>" + esc_html(w[k].time) + "<\/td><\/tr>";
+  w.length || (h += '<tr><td colspan="4">NO WINNERS YET<\/td><\/tr>');
+  h += '<\/table><\/center><div class="pp_button winners_back" onclick="document.getElementById(\'winners_div\').style.display=\'none\';">BACK<\/div>';
+  document.getElementById("winners_div").innerHTML = h, document.getElementById("winners_div").style.display = "block"
 }
 
 function level_up() {
-  level_number++, level_number > 14 && (level_number = 0), game.init()
+  level_number = (level_number + 1) % (LEVELS_PER_WORLD * WORLDS.length), game.init()
 }
 
 function show_smoke(n, t, i) {
@@ -111,7 +244,7 @@ function ce(n) {
   return n || (n = event), typeof n.preventDefault != "undefined" ? n.preventDefault() : typeof n.cancelBubble != "undefined" && (n.returnValue = 0, n.cancelBubble = !0), !1
 }
 var g_resources = function() {
-    for (var t = [], i = ["bg", "platform", "bird", "enemy", "sling1", "sling2", "sling3", "ground", "wood1", "wood2", "dirt", "boulder", "smoke", "menu_refresh", "menu_back"], n = 0; n < i.length; n++) t.push({
+    for (var t = [], i = ["bg", "platform", "bird", "bird_split", "enemy", "enemy_dmg1", "enemy_dmg2", "zombie", "zombie_dmg1", "zombie_dmg2", "sling1", "sling2", "sling3", "ground", "wood1", "wood1_dmg1", "wood1_dmg2", "wood2", "wood2_dmg1", "wood2_dmg2", "glass1", "glass2", "dirt", "dirt_dmg1", "dirt_dmg2", "boulder", "smoke", "menu_refresh", "menu_back"], n = 0; n < i.length; n++) t.push({
       type: "image",
       src: "sprites/" + i[n] + ".png"
     });
@@ -131,6 +264,8 @@ var g_resources = function() {
       return t
     }, this.getHealth = function() {
       return i.currentHealth
+    }, this.getRemaining = function() {
+      return r
     }, this.damage = function(n) {
       this.isDead = (r -= n) <= 0
     }
@@ -138,6 +273,7 @@ var g_resources = function() {
   GameObjectRoll = {
     Enemy: "Enemy",
     Wood: "Wood",
+    Glass: "Glass",
     Bird: "Bird",
     Boulder: "Boulder",
     Dirt: "Dirt"
@@ -234,7 +370,7 @@ var b2Body = Box2D.Dynamics.b2Body,
         u;
       r <= 2 || (u = function(n, i) {
         var u, e, f, o;
-        !n || n.getHealth() == n.getFullHealth() && r < 12 || (r > 15 && !n.isDead && n.getObjectRoll() != "Enemy" && !creating_world && (n.getObjectRoll() == "Bird" || n.getObjectRoll() == "Boulder" || game_over ? (u = i.sprite.getPosition(), u.x < 2400 && !game_over && (e = camera_x(), show_smoke(u.x * VIEW_ZOOM + e, 600 - u.y * VIEW_ZOOM, 0), u.y > 120 && (f = parseInt(r), f > 1e3 && (f = 1e3), t += f))) : (sounds[sound_instance++].play(), sound_instance > 5 && (sound_instance = 1), last_hit = Math.floor(Date.now() / 1e3))), o = n.getObjectRoll(), o === GameObjectRoll.Enemy && n.damage(r))
+        !n || n.getHealth() == n.getFullHealth() && r < 12 || (r > 15 && !n.isDead && n.getObjectRoll() != "Enemy" && !creating_world && (n.getObjectRoll() == "Bird" || n.getObjectRoll() == "Boulder" || game_over ? (u = i.sprite.getPosition(), u.x < 2400 && !game_over && (e = camera_x(), show_smoke(u.x * VIEW_ZOOM + e, 600 - u.y * VIEW_ZOOM, 0), u.y > 120 && (f = parseInt(r), f > 1e3 && (f = 1e3), t += f))) : (sounds[sound_instance++].play(), sound_instance > 5 && (sound_instance = 1), last_hit = Math.floor(Date.now() / 1e3))), o = n.getObjectRoll(), o === GameObjectRoll.Enemy && !creating_world && n.damage(r), o === GameObjectRoll.Wood && !creating_world && r > WOOD_MIN_IMPULSE && n.damage(r * WOOD_DAMAGE_SCALE), o === GameObjectRoll.Glass && !creating_world && r > GLASS_MIN_IMPULSE && n.damage(n.getFullHealth()), o === GameObjectRoll.Dirt && !creating_world && r > STONE_MIN_IMPULSE && n.damage(r * WOOD_DAMAGE_SCALE))
       }, u(o, f), u(s, e))
     }, {
       toWorld: function(n) {
@@ -273,7 +409,7 @@ var b2Body = Box2D.Dynamics.b2Body,
           case "box":
             r.shape = new b2PolygonShape, r.shape.SetAsBox(i(e.width) / 2, i(e.height) / 2)
         }
-        r.density = t.density || 1, r.friction = t.friction || .5, r.restitution = t.restitution || .1, f = n.CreateBody(o), f.CreateFixture(r), t.userData && f.SetUserData(t.userData), f.sprite = t.sprite, t.sprite.body = f, u.push(f)
+        r.density = t.density || 1, r.friction = t.friction || .5, r.restitution = t.restitution || .1, t.groupIndex && (r.filter.groupIndex = t.groupIndex), f = n.CreateBody(o), f.CreateFixture(r), t.userData && f.SetUserData(t.userData), f.sprite = t.sprite, t.sprite.body = f, u.push(f)
       },
       simulate: function() {
         var l, y, s, c, r, v;
@@ -282,9 +418,30 @@ var b2Body = Box2D.Dynamics.b2Body,
             e = i.GetUserData(),
             p = i.GetPosition(),
             g = i.GetAngle();
-          if (e && (i.sprite.getPosition().x > 2440 || i.sprite.getPosition().x < 0) && (e.getObjectRoll() != "Bird" && (e.isDead = !0), e.isContacted = !0), e && e.getObjectRoll() == "Enemy" && e.isDead) {
+          if (e && (i.sprite.getPosition().x > 2440 || i.sprite.getPosition().x < 0) && (e.getObjectRoll() != "Bird" && (e.isDead = !0), e.isContacted = !0), e && e.getObjectRoll() == "Enemy") {
+            // enemies can't roll away: keep the whole head inside the enemy area
+            var er = o(i.GetFixtureList().GetShape().GetRadius()),
+              ex = MathH.clamp(o(p.x), ENEMY_MIN_X + er, ENEMY_MAX_X - er),
+              ev = i.GetLinearVelocity();
+            ex != o(p.x) && (i.SetPosition(new b2Vec2(ex / o(1), p.y)), (ex > o(p.x) ? ev.x < 0 : ev.x > 0) && i.SetLinearVelocity(new b2Vec2(-ev.x * .3, ev.y)), p = i.GetPosition())
+          }
+          if (e && e.getObjectRoll() == "Enemy" && e.isDead) {
             n.DestroyBody(i), t += 1e3, f++, i.sprite.runAction(cc.FadeOut.create(.5)), i.SetUserData(null), f == total_enemies && this.set_game_over();
             continue
+          }
+          if (e && (e.getObjectRoll() == "Wood" || e.getObjectRoll() == "Glass" || e.getObjectRoll() == "Dirt") && e.getRemaining() <= 0) {
+            // broken: wood and stone after enough hits, glass after one
+            n.DestroyBody(i), t += {
+              Glass: 250,
+              Wood: 500,
+              Dirt: 750
+            }[e.getObjectRoll()], i.sprite.runAction(cc.FadeOut.create(.3)), i.SetUserData(null), i.sprite.getPosition().x < 2400 && show_smoke(i.sprite.getPosition().x * VIEW_ZOOM + camera_x(), 600 - i.sprite.getPosition().y * VIEW_ZOOM, 0);
+            continue
+          }
+          if (e && i.sprite.ppHurt !== undefined) {
+            // look more beaten up as health runs out: name.png -> name_dmg1.png -> name_dmg2.png
+            y = e.getRemaining() / e.getFullHealth(), y = y > .66 ? 0 : y > .33 ? 1 : 2;
+            y != i.sprite.ppHurt && (i.sprite.ppHurt = y, i.sprite.setTexture(game.getTexture(i.sprite.ppName + (y ? "_dmg" + y : ""))))
           }
           y = parseInt(document.getElementById("score_div").innerHTML), y < b2.getUserScore() && (s = y + 10, s > b2.getUserScore() && (s = b2.getUserScore()), document.getElementById("score_div").innerHTML = "000000".substr(0, 6 - s.toString().length) + s);
           var a = {
@@ -302,7 +459,7 @@ var b2Body = Box2D.Dynamics.b2Body,
           i.sprite.setPosition(cc.p(o(p.x) + b.x - d.width / 2, o(p.y) + b.y - d.height / 2)), i.sprite.setRotation(h(g))
         }
         if (n.ClearForces(), game.focus_pos != -2 && !game.isPanning) {
-          if (game.focus_pos >= 3) return;
+          if (game.focus_pos >= game.birdCount) return;
           c = game.focus_pos >= 0 ? game.birdSprite[game.focus_pos].getPosition() : {
             x: 1200
           }, r = camera_x(), c.relativeX = c.x * VIEW_ZOOM + r, c.relativeX > 400 ? (game.focus_pos >= 0 ? (game.birdSprite[game.focus_pos]._position.xprev || (game.birdSprite[game.focus_pos]._position.xprev = 0), v = (game.birdSprite[game.focus_pos]._position.x - game.birdSprite[game.focus_pos]._position.xprev) * VIEW_ZOOM, v > 15 && (v = 15), r -= v, game.birdSprite[game.focus_pos]._position.xprev = game.birdSprite[game.focus_pos]._position.x) : r -= 15, r < MIN_SCROLL && (r = MIN_SCROLL), r <= 0 && (document.getElementById("viewport").style.marginLeft = r + "px")) : c.relativeX < 350 && (r += 15, r > 0 && (r = 0), r <= 0 && (document.getElementById("viewport").style.marginLeft = r + "px"))
@@ -312,14 +469,16 @@ var b2Body = Box2D.Dynamics.b2Body,
         var i, r, n;
         document.getElementById("preload_div").style.display = "block";
         if (!game_over) {
-          for (game_over = !0, i = "", r = 4 - game.current_bird, n = 0; n <= 2; n++) i += r > n ? "&#9733;" : "&#9734;";
-          document.getElementById("win_popup").style.display = "block", document.getElementById("win_popup_inner").innerHTML = "LEVEL CLEARED!<br>SCORE: " + t + "<br>" + i, storage["ab_level_" + level_number] = t + ":" + r
+          for (game_over = !0, i = "", r = Math.min(3, game.birdCount + 1 - game.current_bird), n = 0; n <= 2; n++) i += r > n ? "&#9733;" : "&#9734;";
+          document.getElementById("win_popup").style.display = "block", document.getElementById("win_popup_inner").innerHTML = "LEVEL CLEARED!<br>SCORE: " + t + "<br>" + i, storage["ab_level_" + level_number] = t + ":" + r;
+          var who = log_winner(t, r);
+          document.getElementById("win_popup_inner").innerHTML += '<br><span class="win_who">' + esc_html(who.player) + " &middot; " + who.time + "<\/span>"
         }
       },
       set_birds_gone: function() {
         var n = Math.floor(Date.now() / 1e3);
         if (n - last_hit < 3) return setTimeout("b2.set_birds_gone();", 1e3);
-        birds_gone || game.current_bird == 0 || (birds_gone = !0, game_over || (document.getElementById("win_popup").style.display = "none", document.getElementById("preload_div").style.display = "block", document.getElementById("lose_popup").style.display = "block", document.getElementById("lose_popup_inner").innerHTML = "LEVEL FAILED!<br>"))
+        birds_gone || game.current_bird == 0 || (birds_gone = !0, game_over || (document.getElementById("win_popup").style.display = "none", document.getElementById("preload_div").style.display = "block", document.getElementById("lose_popup").style.display = "block", document.getElementById("lose_popup_inner").innerHTML = "LEVEL FAILED!<br>", cackle_sound.currentTime = 0, cackle_sound.play()))
       },
       debugDraw: function(t) {
         if (s = t) {
@@ -375,12 +534,14 @@ var b2Body = Box2D.Dynamics.b2Body,
     },
     addObject: function(n) {
       var t = cc.Sprite.createWithTexture(this.getTexture(n.name));
-      return t.setAnchorPoint(n.anchor || cc.p(.5, .5)), t.setScaleX(n.scaleX || n.scale || 1), t.setScaleY(n.scaleY || n.scale || 1), t.setRotation(n.rotation || 0), t.setPosition(cc.p(n.x || 0, n.y || 0)), n.shape && b2.enablePhysicsFor({
+      // ppHurt = current hurt look for things that have _dmg1/_dmg2 sprites
+      return t.ppName = n.name, HURT_LOOKS[n.name] && n.userData && (t.ppHurt = 0), t.setAnchorPoint(n.anchor || cc.p(.5, .5)), t.setScaleX(n.scaleX || n.scale || 1), t.setScaleY(n.scaleY || n.scale || 1), t.setRotation(n.rotation || 0), t.setPosition(cc.p(n.x || 0, n.y || 0)), n.shape && b2.enablePhysicsFor({
         type: n.type,
         shape: n.shape,
         sprite: t,
         radius: n.radius,
         density: n.density,
+        friction: n.friction,
         userData: n.userData
       }), this.addChild(t, n.z || 0), t
     },
@@ -392,7 +553,7 @@ var b2Body = Box2D.Dynamics.b2Body,
         game.isPanning = !1
       }, document.ontouchend = function() {
         game.isPanning = !1
-      }, document.getElementById("play_button").onclick = show_level_select, document.getElementById("play_button").innerHTML = '<img src="sprites/play.png">', document.getElementById("viewport").style.cursor = "url('sprites/cursor_open.cur'), pointer"), document.getElementById("win_popup").style.display = "none", document.getElementById("lose_popup").style.display = "none", this._super(), this.removeAllChildrenWithCleanup(!0), this.setTouchEnabled(!0), this.setAnchorPoint(cc.p(0, 0)), this.setScale(VIEW_ZOOM), this.current_bird = 0;
+      }, document.getElementById("play_button").onclick = show_name_entry, document.getElementById("play_button").innerHTML = '<img src="sprites/play.png">', document.getElementById("viewport").style.cursor = "url('sprites/cursor_open.cur'), pointer"), document.getElementById("win_popup").style.display = "none", document.getElementById("lose_popup").style.display = "none", this._super(), this.removeAllChildrenWithCleanup(!0), this.setTouchEnabled(!0), this.setAnchorPoint(cc.p(0, 0)), this.setScale(VIEW_ZOOM), this.current_bird = 0, this.levelStart = Date.now();
       var r = cc.Director.getInstance(),
         o = this,
         s = r.getWinSize();
@@ -801,14 +962,14 @@ var b2Body = Box2D.Dynamics.b2Body,
       }, {
         name: "dirt",
         x: 855,
-        y: 340,
+        y: 92,
         type: "static",
         shape: "box",
         userData: new BodyUserData(GameObjectRoll.Dirt, 2e3)
       }, {
         name: "dirt",
         x: 855,
-        y: 423,
+        y: 175,
         type: "static",
         shape: "box",
         userData: new BodyUserData(GameObjectRoll.Dirt, 2e3)
@@ -856,36 +1017,36 @@ var b2Body = Box2D.Dynamics.b2Body,
         userData: new BodyUserData(GameObjectRoll.Dirt, 2e3)
       }, {
         name: "enemy",
-        x: 985,
+        x: 936,
         y: 90,
         type: "dynamic",
         shape: "circle",
         userData: new BodyUserData(GameObjectRoll.Enemy, 400)
       }, {
         name: "enemy",
-        x: 1018,
-        y: 170,
+        x: 1024,
+        y: 90,
         type: "dynamic",
         shape: "circle",
         userData: new BodyUserData(GameObjectRoll.Enemy, 400)
       }, {
         name: "enemy",
-        x: 941,
-        y: 234,
+        x: 980,
+        y: 158,
         type: "dynamic",
         shape: "circle",
         userData: new BodyUserData(GameObjectRoll.Enemy, 400)
       }, {
         name: "wood1",
         x: 855,
-        y: 92,
+        y: 340,
         type: "dynamic",
         shape: "box",
         userData: new BodyUserData(GameObjectRoll.Wood, 2e3)
       }, {
         name: "wood1",
         x: 855,
-        y: 175,
+        y: 423,
         type: "dynamic",
         shape: "box",
         userData: new BodyUserData(GameObjectRoll.Wood, 2e3)
@@ -1669,11 +1830,13 @@ var b2Body = Box2D.Dynamics.b2Body,
         shape: "circle",
         userData: new BodyUserData(GameObjectRoll.Enemy, 400)
       }], total_enemies = 0;
-      for (t in n[level_number]) n[level_number][t].y += 30, n[level_number][t].x += 500, this.addObject(n[level_number][t]), n[level_number][t].name == "enemy" && total_enemies++;
-      for (this.birdSprite = [], t = 0; t < 3; t++) this.birdSprite[t] = this.addObject({
-        name: "bird",
-        x: 130 - t * 50,
-        y: 110,
+      var world = Math.floor(level_number / LEVELS_PER_WORLD),
+        level = world == 0 ? n[level_number] : PP.levels.world2(level_number % LEVELS_PER_WORLD);
+      for (t in level) world == 0 && (level[t].y += 30, level[t].x += 500), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Dirt && (level[t].type = "dynamic", level[t].density = STONE_DENSITY, level[t].friction = STONE_FRICTION, level[t].userData = new BodyUserData(GameObjectRoll.Dirt, STONE_HEALTH)), this.addObject(level[t]), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Enemy && total_enemies++;
+      for (this.birdTypes = WORLDS[world].birds, this.birdCount = this.birdTypes.length, this.birdSprite = [], t = 0; t < this.birdCount; t++) this.birdSprite[t] = this.addObject({
+        name: this.birdTypes[t],
+        x: 130 - t * (this.birdCount > 3 ? 38 : 50),
+        y: this.birdTypes[t] == "bird_split" ? 106 : 110, // sitting on the ground
         z: 1
       });
       f = this.addObject({
@@ -1711,7 +1874,7 @@ var b2Body = Box2D.Dynamics.b2Body,
     },
     update: function() {
       var i, t, r, u;
-      if (b2.simulate(), this.current_bird < 3 && this.birdSprite[this.current_bird].body) {
+      if (b2.simulate(), this.current_bird < this.birdCount && this.birdSprite[this.current_bird].body) {
         if (i = this.birdSprite[this.current_bird].body.GetUserData(), t = this.birdSprite[this.current_bird].getPosition(), !i || i.isContacted) {
           this.respawn_bird();
           return
@@ -1725,18 +1888,57 @@ var b2Body = Box2D.Dynamics.b2Body,
       }
     },
     respawn_bird: function() {
-      if (this.current_bird++, this.current_bird < 3) {
+      if (this.current_bird++, this.current_bird < this.birdCount) {
         var n = cc.Spawn.create(cc.RotateBy.create(1.5, 360), cc.JumpTo.create(1.5, this.birdStartPos, 100, 1));
         this.birdSprite[this.current_bird].runAction(n), setTimeout("if(!game_over&&!game.isPanning){pan_back(game.current_bird);}", 4e3)
       } else birds_gone || setTimeout("b2.set_birds_gone();", 4e3)
     },
+    // Density for the bird in the slingshot (both kinds weigh the same).
+    birdDensity: function() {
+      return this.birdTypes[this.current_bird] == "bird_split" ? SPLIT_DENSITY : BIRD_DENSITY
+    },
+    // Tap while a split bird is flying: it becomes three, fanning out.
+    trySplit: function() {
+      var s = this.birdSprite[this.current_bird],
+        d = s && s.body && s.body.GetUserData(),
+        b, v, p, f, k, a, sp, piece;
+      if (!d || d.isContacted || s.ppName != "bird_split" || s.ppSplit) return !1;
+      s.ppSplit = !0, b = s.body, v = b.GetLinearVelocity(), p = s.getPosition(), f = b.GetFixtureList(), sp = Math.sqrt(v.x * v.x + v.y * v.y) || 1;
+      f.SetDensity(SPLIT_DENSITY / 2), b.ResetMassData(), b.SetLinearVelocity(v);
+      for (k = -1; k <= 1; k += 2) {
+        a = SPLIT_ANGLE * k, piece = this.addObject({
+          name: "bird_split",
+          x: p.x - v.y / sp * 40 * k,
+          y: p.y + v.x / sp * 40 * k,
+          rotation: s.getRotation(),
+          z: 1
+        }), b2.enablePhysicsFor({
+          type: "dynamic",
+          shape: "circle",
+          sprite: piece,
+          density: SPLIT_DENSITY / 2,
+          restitution: .4,
+          groupIndex: -1,
+          userData: new BodyUserData(GameObjectRoll.Bird, 250)
+        }), piece.body.SetLinearVelocity(new b2Vec2(v.x * Math.cos(a) - v.y * Math.sin(a), v.x * Math.sin(a) + v.y * Math.cos(a))), piece.body.SetAngularVelocity(b.GetAngularVelocity())
+      }
+      return show_smoke(p.x * VIEW_ZOOM + camera_x() - 16, 600 - p.y * VIEW_ZOOM - 16, 0), sounds[0].currentTime = 0, sounds[0].play(), pp_emit("bird:split", {
+        x: p.x,
+        y: p.y
+      }), !0
+    },
     onTouchesBegan: function(n, t) {
       if (!game_over) {
         if (this.isDraggingSling) return this.onTouchesEnded(n, t);
-        if (this.current_bird < 3) {
+        if (this.trySplit()) return;
+        if (this.current_bird < this.birdCount) {
+          // Grab only on the bird itself, plus a small forgiving ring around it
+          // (js/config.js -> sling.grabMargin, in screen pixels).
           var i = touch_to_world(n[0]),
-            r = cc.pSub(this.birdStartPos, i);
-          (this.isDraggingSling = cc.pLength(r) < this.slingRadius.max) && !this.birdSprite[this.current_bird].body && !this.slingRubber3 && (this.slingRubber3 = this.addObject({
+            b = this.birdSprite[this.current_bird],
+            r = cc.pSub(b.getPosition(), i),
+            g = b.getContentSize().height * b.getScaleY() / 2 + SLING_GRAB_MARGIN / VIEW_ZOOM;
+          (this.isDraggingSling = !b.body && cc.pLength(r) < g) && !this.slingRubber3 && (this.slingRubber3 = this.addObject({
             name: "sling3",
             x: i.x,
             y: i.y,
@@ -1760,7 +1962,7 @@ var b2Body = Box2D.Dynamics.b2Body,
         }, r = -(this.isPanning.start + (this.isPanning.x - (f.x + camera_x()))), r > 0 && (r = 0), r < MIN_SCROLL && (r = MIN_SCROLL), document.getElementById("viewport").style.marginLeft = r + "px", this.focus_pos = -2;
         return
       }
-      if (this.isDraggingSling && !(this.current_bird >= 3) && !this.birdSprite[this.current_bird].body) {
+      if (this.isDraggingSling && !(this.current_bird >= this.birdCount) && !this.birdSprite[this.current_bird].body) {
         this.slingRubber1.setVisible(!0), this.slingRubber2.setVisible(!0), this.slingRubber3.setVisible(!0);
         var f = touch_to_world(n[0]),
           s = cc.pSub(f, this.birdStartPos),
@@ -1779,7 +1981,7 @@ var b2Body = Box2D.Dynamics.b2Body,
           impulseX: (this.birdStartPos.x - o.x) * LAUNCH_POWER,
           impulseY: (this.birdStartPos.y - o.y) * LAUNCH_POWER,
           radius: this.birdSprite[this.current_bird].getContentSize().height / 2,
-          density: BIRD_DENSITY,
+          density: this.birdDensity(),
           gravity: GRAVITY,
           step: PHYSICS_STEP,
           pxPerMetre: b2.toScreen(1),
@@ -1793,13 +1995,14 @@ var b2Body = Box2D.Dynamics.b2Body,
         this.isPanning = !1;
         return
       }
-      if (!(this.current_bird >= 3) && !this.birdSprite[this.current_bird].body && this.isDraggingSling) {
+      if (!(this.current_bird >= this.birdCount) && !this.birdSprite[this.current_bird].body && this.isDraggingSling) {
         this.slingRubber1.setVisible(!1), this.slingRubber2.setVisible(!1), this.slingRubber3.setVisible(!1), b2.enablePhysicsFor({
           type: "dynamic",
           shape: "circle",
           sprite: this.birdSprite[this.current_bird],
-          density: BIRD_DENSITY,
+          density: this.birdDensity(),
           restitution: .4,
+          groupIndex: this.birdTypes[this.current_bird] == "bird_split" ? -1 : 0,
           userData: new BodyUserData(GameObjectRoll.Bird, 250)
         });
         var i = cc.pSub(this.birdStartPos, this.birdSprite[this.current_bird].getPosition()),
@@ -1831,6 +2034,14 @@ var b2Body = Box2D.Dynamics.b2Body,
   last_hit = Math.floor(Date.now() / 1e3),
   oggs = ["sound_launch", "sound_hit", "sound_hit", "sound_hit", "sound_hit", "sound_hit"],
   sounds = new Array(oggs.length),
+  cackle_sound = new Audio("sound/sound_cackle.wav"), // evil laugh when a level is lost (tools/make_sounds.py)
+  music = new Audio(), // background music, see play_music()
+  music_file = 0,
   sound_instance = 1;
 for (j = 0; j < oggs.length; j++) sounds[j] = new Audio(""), sounds[j].src = "sound/" + oggs[j] + ".mp3", j > 0 && (sounds[j].volume = .2);
+// Try each song in js/config.js -> music.files; a missing file falls through to the next.
+var MUSIC_FILES = window.PP && PP.config && PP.config.music && PP.config.music.files || ["sound/music_theme.wav"];
+music.onerror = function() {
+  ++music_file < MUSIC_FILES.length && (music.src = MUSIC_FILES[music_file], music.ppWanted && play_music())
+}, music.preload = "auto", music.src = MUSIC_FILES[0];
 typeof document.oncontextmenu != "undefined" ? document.oncontextmenu = ce : document.onclick = nrc, typeof document.onselectstart != "undefined" && (document.onselectstart = ce)

@@ -128,6 +128,147 @@ background:var(--pp-violet);
 border-color:var(--pp-gold);
 }
 
+/* World 2 tiles glow zombie green */
+#level_select_div .world-2 td
+{
+border-color:var(--pp-toxic);
+}
+
+#level_select_div .world-2 td:hover
+{
+border-color:var(--pp-gold);
+}
+
+/* Arrows to switch between worlds (big levels) */
+.world_arrow
+{
+position:absolute;top:210px;width:72px;height:96px;
+background:var(--pp-gold);
+box-shadow:0 0 0 4px var(--pp-ink), inset -4px -4px 0 var(--pp-pumpkin-lo);
+cursor:pointer;
+}
+
+.world_arrow:hover
+{
+filter:brightness(1.15);
+}
+
+.world_arrow::after
+{
+content:"";position:absolute;top:24px;border-top:24px solid transparent;border-bottom:24px solid transparent;
+}
+
+.world_prev
+{
+left:28px;
+}
+
+.world_prev::after
+{
+left:20px;border-right:28px solid var(--pp-ink);
+}
+
+.world_next
+{
+right:28px;
+}
+
+.world_next::after
+{
+left:24px;border-left:28px solid var(--pp-ink);
+}
+
+/* Who's pouncing? name screen, and the winners log */
+#name_div, #winners_div
+{
+position:absolute;top:30px;left:30px;width:940px;height:520px;border:6px solid var(--pp-pumpkin);background:var(--pp-purple);box-shadow:inset 0 0 0 6px var(--pp-ink), 0 0 0 6px var(--pp-ink);font-size:24px;text-align:center;z-index:4;display:none;
+}
+
+.name_title
+{
+margin-top:110px;font-size:32px;color:var(--pp-gold);
+}
+
+#name_input
+{
+display:block;margin:40px auto 0;width:560px;padding:14px 0;
+font:28px var(--pp-font);text-align:center;color:var(--pp-gold-hi);text-shadow:none;
+background:var(--pp-night);border:4px solid var(--pp-pumpkin);outline:none;
+box-shadow:inset -4px -4px 0 var(--pp-ink), inset 4px 4px 0 var(--pp-violet);
+-webkit-user-select:text;user-select:text;
+}
+
+#name_input:focus
+{
+border-color:var(--pp-gold);
+}
+
+.name_hint
+{
+margin-top:28px;font-size:12px;color:var(--pp-ghost);
+}
+
+.pp_button
+{
+display:inline-block;padding:12px 20px;font-size:16px;color:var(--pp-ink);text-shadow:none;
+background:var(--pp-gold);box-shadow:0 0 0 4px var(--pp-ink), inset -4px -4px 0 var(--pp-pumpkin-lo);cursor:pointer;
+}
+
+.pp_button:hover
+{
+filter:brightness(1.15);
+}
+
+.name_ok
+{
+margin-top:32px;font-size:20px;
+}
+
+#player_tag
+{
+position:absolute;top:14px;left:18px;font-size:11px;line-height:1.6;text-align:left;color:var(--pp-ghost);cursor:pointer;
+}
+
+#player_tag span
+{
+font-size:14px;color:var(--pp-gold-hi);
+}
+
+#winners_button
+{
+position:absolute;top:12px;right:16px;padding:8px 10px;font-size:12px;
+}
+
+#winners_div
+{
+z-index:5;padding-top:30px;box-sizing:border-box;color:var(--pp-gold);
+}
+
+.winners_table
+{
+border-collapse:collapse;font-size:16px;color:var(--pp-ghost);
+}
+
+.winners_table th
+{
+padding:0 22px 10px;font-size:12px;color:var(--pp-pumpkin);border-bottom:4px solid var(--pp-pumpkin);
+}
+
+.winners_table td
+{
+padding:8px 22px 0;
+}
+
+.winners_back
+{
+position:absolute;bottom:24px;left:50%;transform:translateX(-50%);
+}
+
+.win_who
+{
+font-size:14px;color:var(--pp-ghost);
+}
+
 #smoke_div
 {
 position:absolute;
@@ -220,12 +361,12 @@ position:absolute;top:206px;left:65px;width:100px;height:94px;
 
 #button_game_init
 {
-position:absolute;top:206px;left:219px;width:100px;height:94px;
+position:absolute;top:206px;left:374px;width:100px;height:94px;
 }
 
 #button_level_up
 {
-position:absolute;top:206px;left:374px;width:100px;height:94px;
+position:absolute;top:206px;left:219px;width:100px;height:94px;
 }
 
 #button_level_select_2

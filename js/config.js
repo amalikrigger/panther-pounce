@@ -11,6 +11,46 @@ PP.config = {
     zoom: 0.57
   },
 
+  // Slingshot. You have to press on the panther to pull it back; grabMargin
+  // is how many screen pixels outside the panther still count as touching it.
+  // Bigger = easier on small screens and for little fingers.
+  sling: {
+    grabMargin: 18
+  },
+
+  // Enemies can't roll off the screen: they stay between these game-world x
+  // positions (the slingshot is at 190). null for maxX = the right edge of
+  // the screen when the camera is at the slingshot.
+  enemyArea: {
+    minX: 900,
+    maxX: null
+  },
+
+  // Breakable blocks. Wood has 2000 health; a hit takes impulse x woodScale.
+  // Hits softer than the min impulse do nothing (so towers don't crumble on
+  // their own). Glass shatters on the first hit above glassMinImpulse.
+  // Stone can be pushed around but is heavy (stoneDensity, wood is 1), grips
+  // the ground (stoneFriction, wood is 0.5) and takes about 3 times as many
+  // hits as wood to break. Raise density/friction to make it harder to move.
+  damage: {
+    woodScale: 3,
+    woodMinImpulse: 8,
+    glassMinImpulse: 4,
+    stoneHealth: 6000,
+    stoneMinImpulse: 15,
+    stoneDensity: 4,
+    stoneFriction: 0.9
+  },
+
+  // Background music. The first file that exists plays on a loop.
+  // "Spooky Season (Riddim).m4a" goes in the sound folder; until it is there
+  // the generated ragtime (tools/make_sounds.py) plays instead.
+  // volume 0 to 1. 0 turns the music off.
+  music: {
+    volume: 0.3,
+    files: ["sound/Spooky Season (Riddim).m4a", "sound/music_theme.wav"]
+  },
+
   // Animated Halloween background (js/render/parallax.js)
   background: {
     fps: 30, // redraw rate. 30 looks smooth for a sky and saves battery on tablets.
