@@ -283,4 +283,6 @@ PP.levels = PP.levels || {};
     return l.list
   };
   PP.levels.world2Count = LEVELS.length;
+  // World 3 (js/levels/world3.js) builds on the same blocks.
+  PP.levels.Builder = Builder;
 })();

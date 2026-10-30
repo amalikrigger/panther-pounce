@@ -41,7 +41,9 @@ var DAMAGE = window.PP && PP.config && PP.config.damage || {},
   };
 
 // Big levels. Each world has 15 levels; level_number counts through all of
-// them (world 2 level 1 = level_number 15). World 2 lives in js/levels/world2.js.
+// them (world 2 level 1 = level_number 15). Worlds 2 and 3 live in
+// js/levels/, worlds 4-10 are made by js/levels/generator.js.
+// birds: null = a random line-up every try (world 3 on).
 var LEVELS_PER_WORLD = 15,
   WORLDS = [{
     name: "GRAVEYARD",
@@ -49,8 +51,41 @@ var LEVELS_PER_WORLD = 15,
   }, {
     name: "WITCHING HOUR",
     birds: ["bird", "bird_split", "bird", "bird_split"]
+  }, {
+    name: "PUMPKIN HILLS",
+    birds: null
+  }, {
+    name: "CORN MAZE",
+    birds: null
+  }, {
+    name: "PORTAL PASS",
+    birds: null
+  }, {
+    name: "BONE DESERT",
+    birds: null
+  }, {
+    name: "FROZEN CRYPT",
+    birds: null
+  }, {
+    name: "TOXIC SWAMP",
+    birds: null
+  }, {
+    name: "BLOOD MOON",
+    birds: null
+  }, {
+    name: "THE LAST NIGHT",
+    birds: null
   }],
   current_world = 0;
+
+// Panther kinds. boulder = the pumpkin bomb, drawn smaller so it fits the
+// slingshot. It is heavier but gets a bigger push, so it flies the same arc
+// and hits pumpkinWeight times harder (js/config.js -> randomBirds).
+var BIRD_SCALE = {
+    boulder: .6
+  },
+  PUMPKIN_WEIGHT = window.PP && PP.config && PP.config.randomBirds && PP.config.randomBirds.pumpkinWeight || 2.5,
+  HILL_FRICTION = window.PP && PP.config && PP.config.hills && PP.config.hills.friction || .9;
 
 // Tell the Halloween add-ons (js/) what is happening in the game.
 function pp_emit(name, data) {
@@ -68,6 +103,121 @@ var VIEW_ZOOM = window.PP && PP.config && PP.config.view ? PP.config.view.zoom :
 
 function camera_x() {
   return parseFloat(document.getElementById("viewport").style.marginLeft) || 0
+}
+
+// World 3 hills as a retro picture (3 px blocks, like sprites/ground.png):
+// grass on top, then soil getting darker with depth. Drawn once per level
+// into a canvas; colors come from css/theme.css (--pp-hill-*).
+function make_hill_node(hills) {
+  var css = getComputedStyle(document.documentElement),
+    col = function(n) {
+      return css.getPropertyValue(n ? "--pp-hill-" + n : "--pp-hill").trim()
+    },
+    P = 3,
+    GROUND = 87,
+    top = [],
+    maxTop = GROUND,
+    seed = 7,
+    rnd = function() {
+      return seed = (seed * 16807) % 2147483647, seed / 2147483647
+    },
+    c, g, x, y, k, H, node;
+  for (x = 0; x < WORLD_W; x += P) {
+    for (y = GROUND, k = 0; k < hills.length; k++) y = Math.max(y, PP.levels.hillTop(hills[k], x + P / 2));
+    top.push(y = Math.round(y / P) * P), maxTop = Math.max(maxTop, y)
+  }
+  H = maxTop + P, c = document.createElement("canvas"), c.width = WORLD_W, c.height = H, g = c.getContext("2d");
+  for (x = 0; x < top.length; x++) {
+    if (top[x] <= GROUND) continue;
+    var px = x * P,
+      // canvas y for a world height (the canvas is drawn with its bottom at y = 0)
+      cy = function(wy) {
+        return H - wy
+      },
+      depth = top[x] - (GROUND - 6);
+    g.fillStyle = col("lo"), g.fillRect(px, cy(top[x]), P, depth);
+    g.fillStyle = col(""), g.fillRect(px, cy(top[x]), P, Math.min(depth, 60));
+    g.fillStyle = col("hi"), g.fillRect(px, cy(top[x]), P, Math.min(depth, 18));
+    g.fillStyle = col("grass"), g.fillRect(px, cy(top[x]), P, 2 * P);
+    rnd() < .5 && (g.fillStyle = col("grass-hi"), g.fillRect(px, cy(top[x]), P, P));
+    depth > 60 && rnd() < .3 && (g.fillStyle = col("lo"), g.fillRect(px, cy(top[x] - 24 - Math.floor(rnd() * 12) * P), P, P));
+    rnd() < .06 && (g.fillStyle = col("grass-hi"), g.fillRect(px, cy(top[x] + P), P, P))
+  }
+  node = cc.Node.create();
+  node.draw = function(ctx) {
+    (ctx || cc.renderContext).drawImage(c, 0, -H)
+  };
+  return node
+}
+
+// Unbreakable iron block (portal vaults): riveted steel with a cross brace,
+// drawn once in 3 px retro pixels like the other sprites.
+var iron_canvas = null;
+
+function iron_texture() {
+  if (iron_canvas) return iron_canvas;
+  var c = iron_canvas = document.createElement("canvas"),
+    g = c.getContext("2d"),
+    px = function(x, y, w, h, col) {
+      g.fillStyle = col, g.fillRect(x * 3, y * 3, w * 3, h * 3)
+    },
+    k;
+  c.width = c.height = 81;
+  px(0, 0, 27, 27, "#3a3a44");
+  px(0, 0, 27, 1, "#8a8a98"), px(0, 0, 1, 27, "#8a8a98");
+  px(0, 26, 27, 1, "#16161c"), px(26, 0, 1, 27, "#16161c");
+  for (k = 3; k < 24; k++) px(k, k, 2, 1, "#2a2a32"), px(26 - k - 1, k, 2, 1, "#2a2a32");
+  [[2, 2], [23, 2], [2, 23], [23, 23], [12, 2], [12, 23], [2, 12], [23, 12]].forEach(function(r) {
+    px(r[0], r[1], 2, 2, "#16161c"), px(r[0], r[1], 1, 1, "#b8b8c8")
+  });
+  return c
+}
+
+// Portals (worlds 5+). Each level entry is a pair; this gives one end each,
+// linked to the end that glows the same color.
+var PORTAL_R = 34; // how close (game pixels) a panther has to fly to go in
+
+function make_portals(pairs) {
+  var out = [];
+  pairs.forEach(function(p) {
+    var color = PP.levels.portalColors[p.pair % PP.levels.portalColors.length],
+      a = {
+        x: p.x,
+        y: p.y,
+        color: color,
+        r: PORTAL_R
+      },
+      b = {
+        x: p.to.x,
+        y: p.to.y,
+        color: color,
+        r: PORTAL_R
+      };
+    a.partner = b, b.partner = a, out.push(a, b)
+  });
+  return out
+}
+
+// Glowing, swirling oval for every portal end, redrawn each frame.
+function make_portal_node(ends) {
+  var node = cc.Node.create();
+  node.draw = function(ctx) {
+    var g = ctx || cc.renderContext,
+      t = Date.now() / 1e3,
+      k, e, glow, spin;
+    for (k = 0; k < ends.length; k++) {
+      e = ends[k], spin = t * 3 + k;
+      g.save(), g.translate(e.x, -e.y);
+      glow = g.createRadialGradient(0, 0, 10, 0, 0, 80), glow.addColorStop(0, e.color), glow.addColorStop(1, "rgba(0,0,0,0)");
+      g.globalAlpha = .35 + .15 * Math.sin(t * 4 + k), g.fillStyle = glow, g.fillRect(-80, -80, 160, 160), g.globalAlpha = 1;
+      g.beginPath(), g.ellipse(0, 0, 24, 40, 0, 0, Math.PI * 2), g.fillStyle = "rgba(11,4,24,0.85)", g.fill();
+      g.lineWidth = 7, g.strokeStyle = e.color, g.stroke();
+      g.lineWidth = 3;
+      for (var s = 0; s < 3; s++) g.beginPath(), g.ellipse(0, 0, 17 - s * 5, 31 - s * 9, 0, spin * (s % 2 ? -1 : 1) + s * 2, spin * (s % 2 ? -1 : 1) + s * 2 + Math.PI * 1.1), g.stroke();
+      g.restore()
+    }
+  };
+  return node
 }
 
 // Engine touch point (canvas pixels) -> game world point.
@@ -108,6 +258,9 @@ function show_frontpage(n) {
 // world of the level just played.
 function show_level_select(w) {
   current_world = typeof w == "number" ? w : Math.floor(level_number / LEVELS_PER_WORLD);
+  pp_emit("world:show", {
+    world: current_world
+  });
   for (var n = '<center>WORLD ' + (current_world + 1) + ": " + WORLDS[current_world].name + '<br><br><table class="world-' + (current_world + 1) + '">', t = current_world * LEVELS_PER_WORLD, o = !0, e, i, r, u, f = 0; f < 3; f++) {
     for (n += "<tr>", e = 0; e < 5; e++) {
       if (!storage["ab_level_" + t]) r = !1, i = "&nbsp;";
@@ -214,6 +367,14 @@ function show_winners() {
 
 function level_up() {
   level_number = (level_number + 1) % (LEVELS_PER_WORLD * WORLDS.length), game.init()
+}
+
+// Shake the game for a moment (pumpkin bomb). n = strength in pixels.
+function shake_screen(n) {
+  var el = document.getElementById("game_div");
+  n > .5 ? (el.style.transform = "translate(" + (Math.random() - .5) * 2 * n + "px," + (Math.random() - .5) * 2 * n + "px)", setTimeout(function() {
+    shake_screen(n * .8)
+  }, 30)) : el.style.transform = ""
 }
 
 function show_smoke(n, t, i) {
@@ -385,6 +546,14 @@ var b2Body = Box2D.Dynamics.b2Body,
       getUserScore: function() {
         return t
       },
+      // every physics body with a sprite (game.js -> checkPortals)
+      bodies: function() {
+        return u
+      },
+      // the Box2D world itself (tools/check_levels.js copies it)
+      world: function() {
+        return n
+      },
       enablePhysicsFor: function(t) {
         var o = new b2BodyDef,
           s = {
@@ -409,7 +578,40 @@ var b2Body = Box2D.Dynamics.b2Body,
           case "box":
             r.shape = new b2PolygonShape, r.shape.SetAsBox(i(e.width) / 2, i(e.height) / 2)
         }
-        r.density = t.density || 1, r.friction = t.friction || .5, r.restitution = t.restitution || .1, t.groupIndex && (r.filter.groupIndex = t.groupIndex), f = n.CreateBody(o), f.CreateFixture(r), t.userData && f.SetUserData(t.userData), f.sprite = t.sprite, t.sprite.body = f, u.push(f)
+        r.density = t.density || 1, r.friction = t.friction || .5, r.restitution = t.restitution || .1, t.groupIndex && (r.filter.groupIndex = t.groupIndex), f = n.CreateBody(o), f.CreateFixture(r), t.userData && f.SetUserData(t.userData), f.sprite = t.sprite, f.ppIron = t.sprite.ppName == "iron", t.sprite.body = f, u.push(f)
+      },
+      // Pumpkin bomb: push and hurt everything within `radius` px of (px, py),
+      // less the further away it is, then remove the bomb's own body.
+      // Iron (portal vaults) shields whatever is behind it.
+      explode: function(bomb, px, py, radius, power, hurt) {
+        var k, b, d, p, dx, dy, dist, f, len, role, from = new b2Vec2(i(px), i(py));
+        for (k = 0; k < u.length; k++) {
+          if ((b = u[k]) == bomb || !(d = b.GetUserData())) continue;
+          p = b.GetWorldCenter(), dx = o(p.x) - px, dy = o(p.y) - py, dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist >= radius || n.RayCastAll(from, p).some(function(fx) {
+              return fx.GetBody().ppIron
+            })) continue;
+          f = 1 - dist / radius, len = dist || 1;
+          b.ApplyImpulse(new b2Vec2((dx / len) * power * f, (dy / len + .4) * power * f), p);
+          role = d.getObjectRoll();
+          role == GameObjectRoll.Glass ? d.damage(d.getFullHealth()) : role != GameObjectRoll.Bird && d.damage(hurt * f)
+        }
+        last_hit = Math.floor(Date.now() / 1e3), n.DestroyBody(bomb), u.splice(u.indexOf(bomb), 1)
+      },
+      // World 3 hills: one static body made of thin slices that follow the
+      // hill's surface (PP.levels.hillTop). Their bottoms hide in the ground.
+      addHills: function(hills) {
+        var body = n.CreateBody(new b2BodyDef),
+          STEP = 12,
+          BASE = 67,
+          k, h, x, x1, xb, fd;
+        for (k = 0; k < hills.length; k++)
+          for (h = hills[k], x = h.x - h.topW / 2 - h.slope, x1 = h.x + h.topW / 2 + h.slope; x < x1; x = xb) {
+            xb = Math.min(x + STEP, x1);
+            fd = new b2FixtureDef, fd.friction = HILL_FRICTION, fd.restitution = .1, fd.shape = new b2PolygonShape;
+            fd.shape.SetAsArray([new b2Vec2(i(x), i(BASE)), new b2Vec2(i(xb), i(BASE)), new b2Vec2(i(xb), i(PP.levels.hillTop(h, xb))), new b2Vec2(i(x), i(PP.levels.hillTop(h, x)))], 4);
+            body.CreateFixture(fd)
+          }
       },
       simulate: function() {
         var l, y, s, c, r, v;
@@ -530,7 +732,7 @@ var b2Body = Box2D.Dynamics.b2Body,
     slingRubber3: null,
     current_bird: 0,
     getTexture: function(n) {
-      return cc.TextureCache.getInstance().addImage("sprites/" + n + ".png")
+      return n == "iron" ? iron_texture() : cc.TextureCache.getInstance().addImage("sprites/" + n + ".png")
     },
     addObject: function(n) {
       var t = cc.Sprite.createWithTexture(this.getTexture(n.name));
@@ -553,7 +755,7 @@ var b2Body = Box2D.Dynamics.b2Body,
         game.isPanning = !1
       }, document.ontouchend = function() {
         game.isPanning = !1
-      }, document.getElementById("play_button").onclick = show_name_entry, document.getElementById("play_button").innerHTML = '<img src="sprites/play.png">', document.getElementById("viewport").style.cursor = "url('sprites/cursor_open.cur'), pointer"), document.getElementById("win_popup").style.display = "none", document.getElementById("lose_popup").style.display = "none", this._super(), this.removeAllChildrenWithCleanup(!0), this.setTouchEnabled(!0), this.setAnchorPoint(cc.p(0, 0)), this.setScale(VIEW_ZOOM), this.current_bird = 0, this.levelStart = Date.now();
+      }, document.getElementById("play_button").onclick = show_name_entry, document.getElementById("play_button").innerHTML = '<img src="sprites/play.png">', document.getElementById("viewport").style.cursor = "url('sprites/cursor_open.cur'), pointer"), document.getElementById("win_popup").style.display = "none", document.getElementById("lose_popup").style.display = "none", this._super(), this.removeAllChildrenWithCleanup(!0), this.setTouchEnabled(!0), this.setAnchorPoint(cc.p(0, 0)), this.setScale(VIEW_ZOOM), this.current_bird = 0, this.isDraggingSling = !1, this.armed = [], this.levelStart = Date.now();
       var r = cc.Director.getInstance(),
         o = this,
         s = r.getWinSize();
@@ -1831,11 +2033,28 @@ var b2Body = Box2D.Dynamics.b2Body,
         userData: new BodyUserData(GameObjectRoll.Enemy, 400)
       }], total_enemies = 0;
       var world = Math.floor(level_number / LEVELS_PER_WORLD),
-        level = world == 0 ? n[level_number] : PP.levels.world2(level_number % LEVELS_PER_WORLD);
-      for (t in level) world == 0 && (level[t].y += 30, level[t].x += 500), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Dirt && (level[t].type = "dynamic", level[t].density = STONE_DENSITY, level[t].friction = STONE_FRICTION, level[t].userData = new BodyUserData(GameObjectRoll.Dirt, STONE_HEALTH)), this.addObject(level[t]), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Enemy && total_enemies++;
-      for (this.birdTypes = WORLDS[world].birds, this.birdCount = this.birdTypes.length, this.birdSprite = [], t = 0; t < this.birdCount; t++) this.birdSprite[t] = this.addObject({
+        loaded = world == 0 ? {
+          list: n[level_number]
+        } : PP.levels.load(world, level_number % LEVELS_PER_WORLD),
+        level = loaded.list,
+        hills = [],
+        portals = [];
+      for (t in level) level[t].hill && hills.push(level[t]), level[t].portal && portals.push(level[t]);
+      hills.length && (b2.addHills(hills), this.addChild(make_hill_node(hills), 0));
+      this.portals = make_portals(portals), portals.length && this.addChild(make_portal_node(this.portals), 3);
+      PP.portals = this.portals;
+      PP.groundAt = function(x) {
+        for (var k = 0, y = 87; k < hills.length; k++) y = Math.max(y, PP.levels.hillTop(hills[k], x));
+        return y
+      };
+      for (t in level) level[t].hill || level[t].portal || (world == 0 && (level[t].y += 30, level[t].x += 500), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Dirt && (level[t].type = "dynamic", level[t].density = STONE_DENSITY, level[t].friction = STONE_FRICTION, level[t].userData = new BodyUserData(GameObjectRoll.Dirt, STONE_HEALTH)), this.addObject(level[t]), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Enemy && total_enemies++);
+      // birds: a fixed list, or (world 3 on) a fresh random line-up
+      this.birdTypes = WORLDS[world].birds || loaded.birds;
+      for (this.birdCount = this.birdTypes.length, this.birdSprite = [], t = 0; t < this.birdCount; t++) this.birdSprite[t] = this.addObject({
         name: this.birdTypes[t],
-        x: 130 - t * (this.birdCount > 3 ? 38 : 50),
+        scale: BIRD_SCALE[this.birdTypes[t]],
+        // the queue squeezes together when there are many, so all stay on screen
+        x: 130 - t * Math.min(50, this.birdCount > 3 ? 120 / (this.birdCount - 1) : 50),
         y: this.birdTypes[t] == "bird_split" ? 106 : 110, // sitting on the ground
         z: 1
       });
@@ -1869,12 +2088,13 @@ var b2Body = Box2D.Dynamics.b2Body,
         anchor: cc.p(1, .5),
         z: 2
       }), this.slingRubber3 = null, i = cc.Spawn.create(cc.RotateBy.create(1.5, 360), cc.JumpTo.create(1.5, this.birdStartPos, 100, 1)), this.birdSprite[this.current_bird].runAction(i), this.scheduleUpdate(), pp_emit("level:start", {
-        level: level_number
+        level: level_number,
+        world: world
       })
     },
     update: function() {
       var i, t, r, u;
-      if (b2.simulate(), this.current_bird < this.birdCount && this.birdSprite[this.current_bird].body) {
+      if (b2.simulate(), this.checkPortals(), this.pulseArmed(), this.current_bird < this.birdCount && this.birdSprite[this.current_bird].body) {
         if (i = this.birdSprite[this.current_bird].body.GetUserData(), t = this.birdSprite[this.current_bird].getPosition(), !i || i.isContacted) {
           this.respawn_bird();
           return
@@ -1887,15 +2107,52 @@ var b2Body = Box2D.Dynamics.b2Body,
         }))
       }
     },
+    // Pumpkins that can still blow up throb, so players know to tap.
+    pulseArmed: function() {
+      for (var k = 0, s, t = Date.now() / 1e3; this.armed && k < this.armed.length; k++)
+        s = this.armed[k], s.body && s.setScale(BIRD_SCALE.boulder * (1 + .08 * Math.sin(t * 12)))
+    },
+    // A flying panther (or split piece / pumpkin) that enters a portal pops
+    // out of the same-colored one, keeping its speed. A short cool-down stops
+    // it from bouncing straight back.
+    checkPortals: function() {
+      var ends = this.portals,
+        list, now, k, j, b, d, p, x, y, e;
+      if (!ends || !ends.length) return;
+      for (list = b2.bodies(), now = Date.now(), k = 0; k < list.length; k++) {
+        b = list[k], d = b.GetUserData();
+        if (!d || d.getObjectRoll() != GameObjectRoll.Bird || b.ppPortalUntil > now) continue;
+        p = b.GetPosition(), x = b2.toScreen(p.x), y = b2.toScreen(p.y);
+        for (j = 0; j < ends.length; j++)
+          if (e = ends[j], (x - e.x) * (x - e.x) + (y - e.y) * (y - e.y) < e.r * e.r) {
+            b.SetPosition(new b2Vec2(b2.toWorld(e.partner.x), b2.toWorld(e.partner.y))), b.ppPortalUntil = now + 600;
+            b.sprite && b.sprite.setPosition(cc.p(e.partner.x, e.partner.y));
+            sounds[0].currentTime = 0, sounds[0].play(), pp_emit("bird:portal", {
+              from: e,
+              to: e.partner
+            });
+            break
+          }
+      }
+    },
     respawn_bird: function() {
       if (this.current_bird++, this.current_bird < this.birdCount) {
         var n = cc.Spawn.create(cc.RotateBy.create(1.5, 360), cc.JumpTo.create(1.5, this.birdStartPos, 100, 1));
         this.birdSprite[this.current_bird].runAction(n), setTimeout("if(!game_over&&!game.isPanning){pan_back(game.current_bird);}", 4e3)
       } else birds_gone || setTimeout("b2.set_birds_gone();", 4e3)
     },
-    // Density for the bird in the slingshot (both kinds weigh the same).
+    // Density for the bird in the slingshot. Every kind flies the same arc;
+    // the pumpkin bomb is heavier (and gets a matching bigger push).
     birdDensity: function() {
-      return this.birdTypes[this.current_bird] == "bird_split" ? SPLIT_DENSITY : BIRD_DENSITY
+      var b = this.birdTypes[this.current_bird];
+      return b == "bird_split" ? SPLIT_DENSITY : b == "boulder" ? BIRD_DENSITY * this.birdPower() * Math.pow(22 / this.birdRadius(), 2) : BIRD_DENSITY
+    },
+    birdPower: function() {
+      return this.birdTypes[this.current_bird] == "boulder" ? PUMPKIN_WEIGHT : 1
+    },
+    birdRadius: function() {
+      var s = this.birdSprite[this.current_bird];
+      return s.getContentSize().height * s.getScaleY() / 2
     },
     // Tap while a split bird is flying: it becomes three, fanning out.
     trySplit: function() {
@@ -1927,18 +2184,52 @@ var b2Body = Box2D.Dynamics.b2Body,
         y: p.y
       }), !0
     },
+    // Tap while a pumpkin bomb is flying, or after it has landed: BOOM
+    // (js/config.js -> randomBirds). The newest live pumpkin goes off first.
+    tryExplode: function() {
+      var armed = this.armed || [],
+        s, d, cfg = PP.config.randomBirds,
+        p, k, a, puff;
+      while (armed.length && !(armed[armed.length - 1].body && (d = armed[armed.length - 1].body.GetUserData()))) armed.pop();
+      if (!armed.length) return !1;
+      s = armed.pop(), p = s.getPosition(), d.isContacted = !0;
+      var R = cfg.blastRadius || 340;
+      b2.explode(s.body, p.x, p.y, R, cfg.blastPower || 220, cfg.blastDamage || 4500);
+      s.runAction(cc.Spawn.create(cc.ScaleTo.create(.3, 3), cc.FadeOut.create(.3)));
+      // fireball: two rings of smoke flying out to the edge of the blast
+      for (k = 0; k < 24; k++) a = k / 12 * Math.PI * 2 + (k >= 12 ? .26 : 0), puff = this.addObject({
+        name: "smoke",
+        x: p.x + Math.cos(a) * 20,
+        y: p.y + Math.sin(a) * 20,
+        scale: k >= 12 ? 2 : 3,
+        z: 4
+      }), puff.runAction(cc.Spawn.create(cc.MoveBy.create(.6, cc.p(Math.cos(a) * R * (k >= 12 ? .5 : .85), Math.sin(a) * R * (k >= 12 ? .5 : .85))), cc.ScaleTo.create(.6, k >= 12 ? 6 : 8), cc.FadeOut.create(.6)));
+      show_smoke(p.x * VIEW_ZOOM + camera_x() - 16, 600 - p.y * VIEW_ZOOM - 16, 0);
+      shake_screen(14);
+      for (k = 1; k <= 2; k++) sounds[k].volume = 1, sounds[k].currentTime = 0, sounds[k].play();
+      setTimeout(function() {
+        sounds[1].volume = sounds[2].volume = .2
+      }, 600);
+      pp_emit("bird:explode", {
+        x: p.x,
+        y: p.y
+      });
+      return !0
+    },
     onTouchesBegan: function(n, t) {
       if (!game_over) {
         if (this.isDraggingSling) return this.onTouchesEnded(n, t);
-        if (this.trySplit()) return;
-        if (this.current_bird < this.birdCount) {
-          // Grab only on the bird itself, plus a small forgiving ring around it
-          // (js/config.js -> sling.grabMargin, in screen pixels).
-          var i = touch_to_world(n[0]),
-            b = this.birdSprite[this.current_bird],
-            r = cc.pSub(b.getPosition(), i),
-            g = b.getContentSize().height * b.getScaleY() / 2 + SLING_GRAB_MARGIN / VIEW_ZOOM;
-          (this.isDraggingSling = !b.body && cc.pLength(r) < g) && !this.slingRubber3 && (this.slingRubber3 = this.addObject({
+        // Grab only on the bird itself, plus a small forgiving ring around it
+        // (js/config.js -> sling.grabMargin, in screen pixels).
+        var i = touch_to_world(n[0]),
+          b = this.current_bird < this.birdCount && this.birdSprite[this.current_bird],
+          r = b && cc.pSub(b.getPosition(), i),
+          g = b && b.getContentSize().height * b.getScaleY() / 2 + SLING_GRAB_MARGIN / VIEW_ZOOM,
+          grab = b && !b.body && cc.pLength(r) < g;
+        // any other tap: split the flying cat or blow up a pumpkin
+        if (!grab && (this.trySplit() || this.tryExplode())) return;
+        if (b) {
+          (this.isDraggingSling = grab) && !this.slingRubber3 && (this.slingRubber3 = this.addObject({
             name: "sling3",
             x: i.x,
             y: i.y,
@@ -1978,9 +2269,9 @@ var b2Body = Box2D.Dynamics.b2Body,
         }.bind(this), o = this.birdSprite[this.current_bird].getPosition(), e(this.slingRubber2, o, 13, !0), e(this.slingRubber1, o, 0), this.slingRubber1.setScaleY(this.slingRubber2.getScaleY()), pp_emit("sling:aim", {
           x: o.x,
           y: o.y,
-          impulseX: (this.birdStartPos.x - o.x) * LAUNCH_POWER,
-          impulseY: (this.birdStartPos.y - o.y) * LAUNCH_POWER,
-          radius: this.birdSprite[this.current_bird].getContentSize().height / 2,
+          impulseX: (this.birdStartPos.x - o.x) * LAUNCH_POWER * this.birdPower(),
+          impulseY: (this.birdStartPos.y - o.y) * LAUNCH_POWER * this.birdPower(),
+          radius: this.birdRadius(),
           density: this.birdDensity(),
           gravity: GRAVITY,
           step: PHYSICS_STEP,
@@ -2006,9 +2297,9 @@ var b2Body = Box2D.Dynamics.b2Body,
           userData: new BodyUserData(GameObjectRoll.Bird, 250)
         });
         var i = cc.pSub(this.birdStartPos, this.birdSprite[this.current_bird].getPosition()),
-          r = cc.pMult(i, LAUNCH_POWER),
+          r = cc.pMult(i, LAUNCH_POWER * this.birdPower()),
           u = this.birdSprite[this.current_bird].body.GetWorldCenter();
-        this.birdSprite[this.current_bird].body.ApplyImpulse(r, u), sounds[0].play(), this.focus_pos = this.current_bird, this.isDraggingSling = !1, pp_emit("sling:launch", {
+        this.birdSprite[this.current_bird].body.ApplyImpulse(r, u), this.birdTypes[this.current_bird] == "boulder" && this.armed.push(this.birdSprite[this.current_bird]), sounds[0].play(), this.focus_pos = this.current_bird, this.isDraggingSling = !1, pp_emit("sling:launch", {
           x: this.birdSprite[this.current_bird].getPosition().x,
           y: this.birdSprite[this.current_bird].getPosition().y,
           power: cc.pLength(i) / this.slingRadius.max

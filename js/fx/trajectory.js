@@ -43,13 +43,27 @@
     var mass = d.density * Math.PI * r * r;   // circle body, same as Box2D
     var vx = d.impulseX / mass, vy = d.impulseY / mass;
     var x = d.x / m, y = d.y / m;
-    var floor = (GROUND_TOP + d.radius) / m;
     var steps = Math.round(cfg.seconds / d.step);
     var out = [];
+    var portalWait = 0;
     for (var i = 1; i <= steps; i++) {
       vy -= d.gravity * d.step;
       x += vx * d.step;
       y += vy * d.step;
+      // portals (game.js sets PP.portals): jump to the twin, like the real panther
+      if (PP.portals && --portalWait < 0) {
+        for (var k = 0; k < PP.portals.length; k++) {
+          var e = PP.portals[k], ex = x * m - e.x, ey = y * m - e.y;
+          if (ex * ex + ey * ey < e.r * e.r) {
+            x = e.partner.x / m;
+            y = e.partner.y / m;
+            portalWait = 36;
+            break;
+          }
+        }
+      }
+      // world 3 hills: game.js sets PP.groundAt(x) = height of the ground there
+      var floor = ((PP.groundAt ? PP.groundAt(x * m) : GROUND_TOP) + d.radius) / m;
       if (y < floor || x * m > WORLD_W) break;
       if (i % cfg.dotEvery === 0) out.push({ x: x * m, y: y * m });
     }

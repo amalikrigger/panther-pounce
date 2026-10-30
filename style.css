@@ -139,6 +139,28 @@ border-color:var(--pp-toxic);
 border-color:var(--pp-gold);
 }
 
+/* World 3 tiles glow pumpkin gold */
+#level_select_div .world-3 td
+{
+border-color:var(--pp-gold);
+background:var(--pp-hill-lo);
+}
+
+#level_select_div .world-3 td:hover
+{
+border-color:var(--pp-pumpkin);
+}
+
+/* Worlds 4-10: each world's tiles get their own glow */
+#level_select_div .world-4 td { border-color:#7cff4f; }
+#level_select_div .world-5 td { border-color:#4fc3ff; }
+#level_select_div .world-6 td { border-color:#e8762a; }
+#level_select_div .world-7 td { border-color:#c8e8ff; }
+#level_select_div .world-8 td { border-color:#b0ff40; }
+#level_select_div .world-9 td { border-color:#ff2020; }
+#level_select_div .world-10 td { border-color:#ff4fd8; }
+#level_select_div [class^="world-"] td:hover { border-color:var(--pp-gold-hi); }
+
 /* Arrows to switch between worlds (big levels) */
 .world_arrow
 {

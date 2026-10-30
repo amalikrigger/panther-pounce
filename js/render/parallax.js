@@ -5,6 +5,10 @@
  *   sky -> stars -> blood moon + glow -> clouds -> witch + bats
  *   -> far hills + haunted carnival -> haunted house -> graveyard -> fog
  *
+ * World 3 on swap in other landscapes: "hills" farmland (rolling hills, a
+ * windmill, a farmhouse, scarecrows, a cornfield) or the graveyard, each
+ * world with its own sky colors (.pp-scene-* classes in css/theme.css).
+ *
  * Why it looks retro: everything is drawn on a small 250x150 canvas
  * (one "retro pixel" = 4x4 screen pixels) and CSS scales it up with
  * `image-rendering: pixelated`. A small canvas is also cheap to redraw,
@@ -49,7 +53,7 @@
   ];
   var PUMPKIN = ['..g..', '.ooo.', 'oyoyo', '.ooo.'];
 
-  var C = {};          // colors read from CSS
+  var C = {};          // colors read from CSS (the current scene's)
   var calm = false;    // prefers-reduced-motion
   var canvas, ctx, viewport;
   var sky, moonImg, farLayer, midLayer, nearLayer, fogStrips, clouds;
@@ -57,6 +61,8 @@
   var witch = { active: false, x: 0, y: 0, nextAt: 0 };
   var MOON = { x: 185, y: 40, r: 20 };
   var WHEEL = { x: 230, y: 88, r: 17 };
+  var MILL = { x: 205, y: 74, r: 15 };  // world 3 windmill
+  var scenes = {}, scene;               // built landscapes, see WORLD_SCENES
 
   // Add-ons (like js/render/spectators.js) register a draw function here.
   // It runs every frame, after the graveyard and before the fog, as
@@ -151,8 +157,10 @@
     return Math.min(MAX_CAM, Math.max(0, -m / PIXEL));
   }
 
-  function readColors() {
-    var style = getComputedStyle(document.documentElement);
+  // el = an element whose CSS holds the scene's colors (css/theme.css)
+  function readColors(el) {
+    var style = getComputedStyle(el);
+    C = {};
     ['ink', 'night', 'purple', 'violet', 'plum', 'gold-hi', 'maroon', 'pumpkin', 'toxic',
      'ghost', 'window', 'moon', 'moon-hi', 'moon-crater', 'moon-glow',
      'sil-far', 'sil-mid', 'sil-near', 'fog', 'charcoal', 'skin', 'skin-shade'].forEach(function (name) {
@@ -233,12 +241,15 @@
     }
   }
 
+  // Fills under a wavy hill top. Returns the top y of every column.
   function hillLine(g, width, base, amp, freq, seed, color) {
-    var r = rng(seed), p1 = r() * 6, p2 = r() * 6;
+    var r = rng(seed), p1 = r() * 6, p2 = r() * 6, tops = [];
     for (var x = 0; x < width; x++) {
       var top = Math.round(base - amp * (0.6 * Math.sin(x * freq + p1) + 0.4 * Math.sin(x * freq * 2.3 + p2)));
       rect(g, x, top, 1, H - top, color);
+      tops.push(top);
     }
+    return tops;
   }
 
   function deadTree(g, x, y, len, angle, levels, t, color, r) {
@@ -319,6 +330,97 @@
         lanterns.push({ x: x + 2.5, y: G - 2, seed: r() * 10 });
       }
       x += w + 6 + Math.floor(r() * 14);
+    }
+    return c;
+  }
+
+  // ---- World 3 "PUMPKIN HILLS": farmland at sunset
+
+  // Far layer: big rolling hills, a barn, round trees and the windmill tower
+  // (its sails turn every frame).
+  function buildFarHills() {
+    var width = Math.ceil(W + MAX_CAM * depth.far) + 2;
+    var c = makeCanvas(width, H), g = c.getContext('2d'), col = C['sil-far'], r = rng(41);
+    var tops = hillLine(g, width, 104, 14, 0.028, 4, col);
+    for (var x = 12; x < width - 6; x += 18 + Math.floor(r() * 30)) {
+      if (Math.abs(x - MILL.x) < 14 || Math.abs(x - 90) < 16) continue;
+      rect(g, x, tops[x] - 4, 1, 4, col);
+      disc(g, x + 0.5, tops[x] - 6, 2 + r() * 2, col);
+    }
+    var bx = 90, bb = tops[bx] + 2;         // barn
+    rect(g, bx - 9, bb - 10, 18, 10, col);
+    roof(g, bx - 11, bb - 10, 22, col);
+    rect(g, bx - 2, bb - 6, 4, 6, C.maroon);
+    var mb = tops[MILL.x] + 2;              // windmill tower
+    for (var y = MILL.y; y < mb; y++) {
+      var half = 2 + Math.floor((y - MILL.y) / 6);
+      rect(g, MILL.x - half, y, half * 2 + 1, 1, col);
+    }
+    roof(g, MILL.x - 4, MILL.y + 1, 9, col);
+    return c;
+  }
+
+  // Mid layer: farmhouse (windows glow per frame), scarecrows, haystacks.
+  function buildMidHills() {
+    var width = Math.ceil(W + MAX_CAM * depth.mid) + 2;
+    var c = makeCanvas(width, H), g = c.getContext('2d'), col = C['sil-mid'], r = rng(9);
+    var tops = hillLine(g, width, 121, 6, 0.05, 8, col);
+    var x = 150, base = tops[x + 16] + 1;
+    rect(g, x + 4, base - 34, 4, 10, col);   // chimney
+    rect(g, x, base - 22, 34, 22, col);      // farmhouse
+    roof(g, x - 3, base - 22, 40, col);
+    rect(g, x + 36, base - 14, 12, 14, col); // shed
+    roof(g, x + 34, base - 14, 16, col);
+    [[6, 16], [16, 16], [26, 16], [6, 8]].forEach(function (w) {
+      windows.push({ x: x + w[0], y: base - w[1], seed: r() * 10 });
+    });
+    [40, 110, 270].forEach(function (sx) {   // scarecrows
+      var t = tops[sx];
+      rect(g, sx, t - 14, 1, 14, col);
+      rect(g, sx - 4, t - 11, 9, 1, col);
+      rect(g, sx - 1, t - 17, 3, 3, col);
+      rect(g, sx - 3, t - 17, 7, 1, col);
+      rect(g, sx - 1, t - 19, 3, 2, col);
+    });
+    [70, 210, 320].forEach(function (hx) {   // haystacks
+      if (hx >= width) return;
+      disc(g, hx, tops[hx], 5, col);
+    });
+    return c;
+  }
+
+  // Near layer: cornfield, wooden fences, hay bales and jack-o'-lanterns.
+  function buildNearHills() {
+    var width = Math.ceil(W + MAX_CAM * depth.near) + 2;
+    var c = makeCanvas(width, H), g = c.getContext('2d'), col = C['sil-near'], r = rng(17);
+    var G = GROUND_Y + 1, x = 24;
+    rect(g, 0, G - 1, width, H, col);
+    while (x < width - 10) {
+      var kind = r(), w;
+      if (kind < 0.4) {                       // corn stalks
+        w = 10 + Math.floor(r() * 10);
+        for (var k = 0; k < w; k += 3) {
+          var h = 9 + Math.floor(r() * 7);
+          rect(g, x + k, G - h, 1, h, col);
+          rect(g, x + k - 1, G - h + 3, 1, 1, col);
+          rect(g, x + k + 1, G - h + 5, 1, 1, col);
+          if (r() < 0.3) rect(g, x + k + 1, G - h + 2, 1, 2, C['gold-hi']); // cob
+        }
+      } else if (kind < 0.6) {                // wooden fence
+        w = 18;
+        for (var px = x; px < x + w; px += 6) rect(g, px, G - 8, 2, 8, col);
+        rect(g, x, G - 7, w, 1, col);
+        rect(g, x, G - 4, w, 1, col);
+      } else if (kind < 0.75) {               // hay bale
+        w = 8;
+        rect(g, x, G - 5, w, 5, col);
+        rect(g, x + 1, G - 6, w - 2, 1, col);
+      } else {                                // jack-o'-lantern (glow drawn per frame)
+        w = 5;
+        pixelArt(g, x, G - 4, PUMPKIN, { g: col, o: C.pumpkin, y: C['gold-hi'] });
+        lanterns.push({ x: x + 2.5, y: G - 2, seed: r() * 10 });
+      }
+      x += w + 4 + Math.floor(r() * 12);
     }
     return c;
   }
@@ -424,6 +526,21 @@
     }
   }
 
+  // World 3: four windmill sails turning slowly in the sunset breeze.
+  function drawWindmill(t, cam) {
+    var cx = MILL.x - cam * depth.far, cy = MILL.y, col = C['sil-far'];
+    var spin = calm ? 0.4 : t * 0.6;
+    for (var i = 0; i < 4; i++) {
+      var a = spin + i * Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+      line(ctx, cx, cy, cx + ca * MILL.r, cy + sa * MILL.r, 1, col);
+      for (var k = 5; k <= MILL.r; k++) {           // the sail cloth
+        rect(ctx, cx + ca * k - sa * 2, cy + sa * k + ca * 2, 1, 1, col);
+        rect(ctx, cx + ca * k - sa * 3, cy + sa * k + ca * 3, 1, 1, col);
+      }
+    }
+    rect(ctx, cx - 1, cy - 1, 3, 3, C.pumpkin);
+  }
+
   function flicker(t, seed) {
     if (calm) return 1;
     return 0.7 + 0.2 * Math.sin(t * 7 + seed * 3) + 0.1 * Math.sin(t * 23 + seed);
@@ -479,7 +596,8 @@
       drawBats(t, cam);
     }
     ctx.drawImage(farLayer, -Math.round(cam * depth.far), 0);
-    drawWheel(t, cam);
+    if (scene.kind === 'hills') drawWindmill(t, cam);
+    else drawWheel(t, cam);
     ctx.drawImage(midLayer, -Math.round(cam * depth.mid), 0);
     drawWindows(t, cam);
     ctx.drawImage(nearLayer, -Math.round(cam * depth.near), 0);
@@ -487,6 +605,70 @@
     api.cam = cam;
     for (var i = 0; i < addOns.length; i++) addOns[i](ctx, t, api);
     drawFog(t, cam);
+  }
+
+  // ------------------------------------------------------------ scenes
+
+  // Builds every picture for one landscape, using the colors on `el`.
+  function buildScene(kind, el) {
+    readColors(el);
+    windows = [];
+    lanterns = [];
+    var hills = kind === 'hills';
+    return {
+      kind: kind,
+      C: C,
+      sky: buildSky(),
+      moonImg: buildMoon(),
+      clouds: buildClouds(),
+      far: hills ? buildFarHills() : buildFar(),
+      mid: hills ? buildMidHills() : buildMid(),
+      near: hills ? buildNearHills() : buildNear(),
+      fog: [buildFog(31, 0.16), buildFog(47, 0.12)],
+      windows: windows,
+      lanterns: lanterns
+    };
+  }
+
+  function useScene(kind) {
+    scene = scenes[kind];
+    C = scene.C;
+    sky = scene.sky;
+    moonImg = scene.moonImg;
+    clouds = scene.clouds;
+    farLayer = scene.far;
+    midLayer = scene.mid;
+    nearLayer = scene.near;
+    fogStrips = scene.fog;
+    windows = scene.windows;
+    lanterns = scene.lanterns;
+    if (api) api.colors = C;
+  }
+
+  // Landscape for each world (0-based): which scenery to draw and which CSS
+  // class in css/theme.css holds its colors ('' = the :root graveyard colors).
+  var WORLD_SCENES = [
+    ['graveyard', ''], ['graveyard', ''], ['hills', 'pp-scene-hills'],
+    ['hills', 'pp-scene-corn'], ['graveyard', 'pp-scene-portal'], ['hills', 'pp-scene-desert'],
+    ['graveyard', 'pp-scene-frost'], ['hills', 'pp-scene-swamp'], ['graveyard', 'pp-scene-blood'],
+    ['hills', 'pp-scene-void']
+  ];
+
+  // Built the first time a world is shown, then kept.
+  function sceneForWorld(world) {
+    var s = WORLD_SCENES[world] || WORLD_SCENES[0], key = s[0] + ':' + s[1];
+    if (!scenes[key]) {
+      var el = document.documentElement;
+      if (s[1]) {
+        el = document.createElement('div');
+        el.className = s[1];
+        el.style.display = 'none';
+        document.body.appendChild(el);
+      }
+      scenes[key] = buildScene(s[0], el);
+      if (el.parentNode === document.body) document.body.removeChild(el);
+    }
+    return key;
   }
 
   // ------------------------------------------------------------ start
@@ -505,7 +687,6 @@
     if (!gameDiv || !viewport) return;
 
     calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    readColors();
 
     canvas = makeCanvas(W, H);
     canvas.id = 'bg_canvas';
@@ -514,15 +695,9 @@
     ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
-    sky = buildSky();
+    useScene(sceneForWorld(0));
     buildStars();
-    moonImg = buildMoon();
-    clouds = buildClouds();
     buildBats();
-    farLayer = buildFar();
-    midLayer = buildMid();
-    nearLayer = buildNear();
-    fogStrips = [buildFog(31, 0.16), buildFog(47, 0.12)];
     witch.nextAt = performance.now() / 1000 + cfg.witch.firstSec;
 
     api = {
@@ -534,6 +709,10 @@
       colors: C,          // palette from css/theme.css
       rect: rect
     };
+
+    // switch landscape when a world is shown or a level starts (game.js)
+    PP.on('world:show', function (d) { useScene(sceneForWorld(d.world)); });
+    PP.on('level:start', function (d) { useScene(sceneForWorld(d.world)); });
 
     requestAnimationFrame(loop);
   }

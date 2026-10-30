@@ -45,5 +45,117 @@
   --pp-skin: #f4d2b8;
   --pp-skin-shade: #cf9677;
 
+  /* world 3 hills in the game (game.js draws them) */
+  --pp-hill-grass-hi: #5f8f3a;
+  --pp-hill-grass: #3f6b2a;
+  --pp-hill-hi: #4a2a45;
+  --pp-hill: #2e1a33;
+  --pp-hill-lo: #170c1c;
+
   --pp-font: "Press Start 2P", "Courier New", monospace;
+}
+
+/* World 3 "PUMPKIN HILLS" background: sunset sky and a golden harvest moon.
+   js/render/parallax.js reads these instead of the graveyard colors above;
+   anything not listed here is the same as above. */
+.pp-scene-hills {
+  --pp-ink: #120b2a;
+  --pp-night: #2b1747;
+  --pp-purple: #5a2350;
+  --pp-violet: #a23a4a;
+  --pp-plum: #e2703a;
+
+  --pp-moon: #f6bc1b;
+  --pp-moon-hi: #ffe48a;
+  --pp-moon-crater: #c98a10;
+  --pp-moon-glow: #ffc94a;
+
+  --pp-sil-far: #4a1f45;
+  --pp-sil-mid: #2a1230;
+  --pp-sil-near: #12081a;
+  --pp-fog: #ffb27a;
+}
+
+/* World 4 "CORN MAZE": deep green night, pale moon */
+.pp-scene-corn {
+  --pp-ink: #050d08;
+  --pp-night: #0c2015;
+  --pp-purple: #163a24;
+  --pp-violet: #2a5a33;
+  --pp-plum: #4f7a3a;
+  --pp-moon: #e8e4c8; --pp-moon-hi: #ffffff; --pp-moon-crater: #b8b39a; --pp-moon-glow: #d8f0b0;
+  --pp-sil-far: #12301c; --pp-sil-mid: #0a1e11; --pp-sil-near: #030a05;
+  --pp-fog: #b8e6a0;
+}
+
+/* World 5 "PORTAL PASS": electric teal sky, the portals' home */
+.pp-scene-portal {
+  --pp-ink: #020a14;
+  --pp-night: #062033;
+  --pp-purple: #0b3a52;
+  --pp-violet: #135f73;
+  --pp-plum: #1f8c8c;
+  --pp-moon: #4fc3ff; --pp-moon-hi: #b8ecff; --pp-moon-crater: #2a8fbf; --pp-moon-glow: #4fe0ff;
+  --pp-sil-far: #0a2a3a; --pp-sil-mid: #061a26; --pp-sil-near: #020a10;
+  --pp-fog: #8fe8ff;
+}
+
+/* World 6 "BONE DESERT": hot red dusk */
+.pp-scene-desert {
+  --pp-ink: #1a0606;
+  --pp-night: #3a0f0a;
+  --pp-purple: #6a1f10;
+  --pp-violet: #a83a14;
+  --pp-plum: #e8762a;
+  --pp-moon: #fff0c8; --pp-moon-hi: #ffffff; --pp-moon-crater: #e0c890; --pp-moon-glow: #ffd890;
+  --pp-sil-far: #5a1e10; --pp-sil-mid: #3a1008; --pp-sil-near: #1a0604;
+  --pp-fog: #ffc890;
+}
+
+/* World 7 "FROZEN CRYPT": icy blue night */
+.pp-scene-frost {
+  --pp-ink: #040814;
+  --pp-night: #0c1a33;
+  --pp-purple: #1c3358;
+  --pp-violet: #3a5a8a;
+  --pp-plum: #7aa0c8;
+  --pp-moon: #eaf6ff; --pp-moon-hi: #ffffff; --pp-moon-crater: #b0c8e0; --pp-moon-glow: #c8e8ff;
+  --pp-sil-far: #1a2a48; --pp-sil-mid: #0e1830; --pp-sil-near: #050a16;
+  --pp-fog: #e0f0ff;
+}
+
+/* World 8 "TOXIC SWAMP": glowing green haze */
+.pp-scene-swamp {
+  --pp-ink: #060a02;
+  --pp-night: #142008;
+  --pp-purple: #2a3a0c;
+  --pp-violet: #4a6a12;
+  --pp-plum: #7cbf1f;
+  --pp-moon: #7cff4f; --pp-moon-hi: #d0ffb0; --pp-moon-crater: #4abf2a; --pp-moon-glow: #7cff4f;
+  --pp-sil-far: #1e2e0a; --pp-sil-mid: #121c06; --pp-sil-near: #060a02;
+  --pp-fog: #b0ff80;
+}
+
+/* World 9 "BLOOD MOON": dark red everything */
+.pp-scene-blood {
+  --pp-ink: #0a0204;
+  --pp-night: #24060c;
+  --pp-purple: #440a14;
+  --pp-violet: #6a0f1e;
+  --pp-plum: #9a1a28;
+  --pp-moon: #ff1a1a; --pp-moon-hi: #ff6a5a; --pp-moon-crater: #a00a14; --pp-moon-glow: #ff2020;
+  --pp-sil-far: #300810; --pp-sil-mid: #1c040a; --pp-sil-near: #0a0204;
+  --pp-fog: #ff8a8a;
+}
+
+/* World 10 "THE LAST NIGHT": almost black, a golden eclipse */
+.pp-scene-void {
+  --pp-ink: #000000;
+  --pp-night: #07020e;
+  --pp-purple: #12061f;
+  --pp-violet: #1f0a33;
+  --pp-plum: #33104d;
+  --pp-moon: #1a0a24; --pp-moon-hi: #f6bc1b; --pp-moon-crater: #0b0418; --pp-moon-glow: #f6bc1b;
+  --pp-sil-far: #150a24; --pp-sil-mid: #0a0414; --pp-sil-near: #020006;
+  --pp-fog: #8a6ab8;
 }

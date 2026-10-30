@@ -92,5 +92,26 @@ PP.config = {
     dotEvery: 4,            // one dot every N physics steps (60 steps = 1 second)
     fadeInSec: 0.15,
     fadeOutSec: 0.35
+  },
+
+  // World 3 deals a random line-up of panthers every try. Bigger weight =
+  // shows up more often. How many you get is set per level in
+  // js/levels/world3.js (3 for the easy ones, up to 6 for the hardest).
+  //   bird       - the panther
+  //   bird_split - tap while flying to split into three
+  //   boulder    - pumpkin bomb: flies the same arc but hits much harder.
+  //                Tap while it flies to make it explode!
+  randomBirds: {
+    weights: { bird: 5, bird_split: 3, boulder: 2 },
+    pumpkinWeight: 2.5, // how many times heavier the pumpkin bomb hits
+    blastRadius: 340,   // how far the explosion reaches (game pixels)
+    blastPower: 220,    // how hard it throws things (heavy stone moves less)
+    blastDamage: 4500   // damage right next to the blast. Wood has 2000 health,
+                        // stone 6000, glass breaks on any hit, zombies 600-1500
+  },
+
+  // Hills in world 3 (colors live in css/theme.css: --pp-hill-*)
+  hills: {
+    friction: 0.9 // how much things grip the hills (wood is 0.5)
   }
 };
