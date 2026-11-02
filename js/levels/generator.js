@@ -189,7 +189,7 @@ PP.levels = PP.levels || {};
   // generator and update this list (PP.check.fix finds new variants).
   PP.levels.tune = {
     62: 1, 66: 1, 68: 1, 70: 1, 73: 2, 81: 2, 85: 3, 90: 1, 93: 1, 95: 1,
-    104: 1, 106: 1, 109: 2, 110: 1, 112: 1, 114: 2, 128: 1, 132: 1, 146: 1
+    104: 1, 106: 1, 109: 2, 110: 1, 112: 1, 114: 2, 128: 1, 132: 1, 135: 1, 146: 1
   };
 
   // world: 3-9 (worlds 4-10), i: 0-14
@@ -246,14 +246,49 @@ PP.levels = PP.levels || {};
     });
     return {
       list: l.list,
-      birds: PP.levels.randomBirds(Math.max(birdCount(world, i), Math.min(10, Math.ceil(enemies * .7))))
+      count: Math.max(birdCount(world, i), Math.min(10, Math.ceil(enemies * .7)))
     }
   };
 
+  // The level's panthers: picked once from its own seed, so they're the same
+  // every try, and picked to suit it. Lots of stone or a vault -> pumpkin
+  // bombs (a vault always gets one), lots of glass -> split cats, and always
+  // at least one plain panther. js/config.js -> randomBirds.weights is the base.
+  PP.levels.lineup = function(list, count, n, v) {
+    var r = rng(90001 + n * 131 + (v || 0) * 7919),
+      w = {},
+      stone = 0,
+      glass = 0,
+      vault = !1,
+      out = [],
+      k, name, total, x;
+    list.forEach(function(o) {
+      o.name == "dirt" && stone++, (o.name == "glass1" || o.name == "glass2") && glass++, o.name == "iron" && (vault = !0)
+    });
+    for (name in PP.config.randomBirds.weights) w[name] = PP.config.randomBirds.weights[name];
+    w.boulder = (w.boulder || 0) + stone * .4 + (vault ? 2 : 0);
+    w.bird_split = (w.bird_split || 0) + glass * .3;
+    total = 0;
+    for (name in w) total += w[name];
+    for (k = 0; k < count; k++) {
+      x = r() * total;
+      for (name in w)
+        if ((x -= w[name]) < 0) break;
+      out.push(name)
+    }
+    out.indexOf("bird") < 0 && (out[0] = "bird");
+    vault && out.indexOf("boulder") < 0 && (out[out.length > 1 ? 1 : 0] = "boulder");
+    return out
+  };
+
   // Every world in one place. world is 0-based; world 0 lives in game.js.
+  // Returns { list, birds } (birds undefined = the world's fixed line-up).
   PP.levels.load = function(world, i) {
+    var n = world * 15 + i,
+      v = PP.levels.tune[n] || 0,
+      L;
     if (world == 1) return { list: PP.levels.world2(i) };
-    if (world == 2) return { list: PP.levels.world3(i), birds: PP.levels.world3Birds(i) };
-    return PP.levels.generate(world, i)
+    L = world == 2 ? { list: PP.levels.world3(i), count: PP.levels.world3Count(i) } : PP.levels.generate(world, i);
+    return { list: L.list, birds: PP.levels.lineup(L.list, L.count, n, v) }
   };
 })();

@@ -94,9 +94,11 @@ PP.config = {
     fadeOutSec: 0.35
   },
 
-  // World 3 deals a random line-up of panthers every try. Bigger weight =
-  // shows up more often. How many you get is set per level in
-  // js/levels/world3.js (3 for the easy ones, up to 6 for the hardest).
+  // From world 3 on every level has its own mix of panthers. It is picked
+  // once per level (the same every try) to suit the level: more pumpkin bombs
+  // for stone and vaults, more split cats for glass (js/levels/generator.js ->
+  // PP.levels.lineup). These are the base weights: bigger = more often.
+  // How many you get is set per level (3 to 10, more for harder levels).
   //   bird       - the panther
   //   bird_split - tap while flying to split into three
   //   boulder    - pumpkin bomb: flies the same arc but hits much harder.

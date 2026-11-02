@@ -5,9 +5,9 @@
  * settings and damage rules as game.js, plus portals and the enemy fence).
  * For every panther it tries aimed shots at each enemy and portal plus a
  * spread of angles and powers, keeps the shot that does the most, and moves
- * on. A level passes if the bot clears it with the panthers the level gives.
- * The bot only uses plain panthers (no splitting or pumpkin blasts), so real
- * players have it a little easier.
+ * on. A level passes if the bot clears it with the level's own line-up of
+ * panthers, used the way a player would: split cats split (or not), pumpkin
+ * bombs blow up on impact or once they've stopped.
  *
  * How to run: start the game (python -m http.server 8000), open
  * http://localhost:8000/ and in the browser console:
@@ -103,6 +103,14 @@
       })
     };
     W.SetContactListener(L);
+    // the bird in flight touched something (split/explode timing)
+    L.BeginContact = function(c) {
+      [c.GetFixtureA().GetBody(), c.GetFixtureB().GetBody()].forEach(function(b) {
+        var d = b.GetUserData();
+        d && d.role == "Bird" && !d.contacted && (d.contacted = self.steps || 1)
+      })
+    };
+    this.steps = 0;
     snap.forEach(function(s) { cloneInto(W, s) });
   }
 
@@ -140,13 +148,72 @@
       } else if (d.rem <= 0) kill.push(b);
     }
     for (k = 0; k < kill.length; k++) d = kill[k].GetUserData(), d.dead = !0, d.role == "Enemy" && this.kills++, W.DestroyBody(kill[k]);
+    this.steps++, this.ability();
   };
 
-  // Run until everything is still (or `max` steps).
+  // Special panthers, the way a player would use them (game.js trySplit and
+  // tryExplode): split after `split` steps, explode on impact or once still.
+  Sim.prototype.ability = function(atEnd) {
+    var a = this.active,
+      b, d;
+    if (!a || a.done || !(b = a.body) || !(d = b.GetUserData())) return;
+    if (a.type == "bird_split" && a.split && this.steps - a.at >= a.split) {
+      a.done = !0;
+      if (!d.contacted) this.split(b);
+    } else if (a.type == "boulder" && (a.boom == "contact" && d.contacted && this.steps - d.contacted >= 4 || a.boom == "settle" && atEnd)) {
+      a.done = !0, this.explode(b);
+    }
+  };
+
+  Sim.prototype.split = function(b) {
+    var v = b.GetLinearVelocity(),
+      p = b.GetPosition(),
+      sp = Math.sqrt(v.x * v.x + v.y * v.y) || 1,
+      f = b.GetFixtureList(),
+      k, a, piece;
+    f.SetDensity(SPLIT_DENSITY / 2), b.ResetMassData(), b.SetLinearVelocity(v);
+    for (k = -1; k <= 1; k += 2) {
+      a = SPLIT_ANGLE * k;
+      piece = this.body(p.x * PX - v.y / sp * 40 * k, p.y * PX + v.x / sp * 40 * k, 18, SPLIT_DENSITY / 2, -1);
+      piece.SetLinearVelocity(new b2Vec2(v.x * Math.cos(a) - v.y * Math.sin(a), v.x * Math.sin(a) + v.y * Math.cos(a)));
+      piece.SetAngularVelocity(b.GetAngularVelocity())
+    }
+  };
+
+  // Same as b2.explode in game.js (iron blocks the blast).
+  Sim.prototype.explode = function(bomb) {
+    var cfg = PP.config.randomBirds,
+      R = cfg.blastRadius || 340,
+      power = cfg.blastPower || 220,
+      hurt = cfg.blastDamage || 4500,
+      c = bomb.GetPosition(),
+      from = new b2Vec2(c.x, c.y),
+      self = this,
+      b, d, p, dx, dy, dist, f, len;
+    for (b = this.W.GetBodyList(); b; b = b.GetNext()) {
+      if (b == bomb || !(d = b.GetUserData()) || d.dead) continue;
+      p = b.GetWorldCenter(), dx = (p.x - c.x) * PX, dy = (p.y - c.y) * PX, dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist >= R || this.W.RayCastAll(from, p).some(function(fx) { return fx.GetBody().ppIron })) continue;
+      f = 1 - dist / R, len = dist || 1;
+      b.ApplyImpulse(new b2Vec2(dx / len * power * f, (dy / len + .4) * power * f), p);
+      if (d.role == "Glass") d.rem = 0;
+      else if (d.role != "Bird") d.role == "Enemy" && (self.hurt += Math.min(hurt * f, d.rem) / d.full), d.rem -= hurt * f;
+    }
+    bomb.GetUserData().dead = !0, this.W.DestroyBody(bomb);
+  };
+
+  // Run until everything is still (or `max` steps). A pumpkin set to go off
+  // "once still" explodes then, and the run carries on until things settle.
   Sim.prototype.run = function(min, max) {
     for (var k = 0; k < max; k++) {
       this.step();
       if (k >= min && k % 15 == 0 && this.still()) break
+    }
+    var a = this.active;
+    if (a && !a.done && a.type == "boulder" && a.boom == "settle") {
+      this.ability(!0);
+      for (k = 0; k < 300; k++)
+        if (this.step(), k >= 60 && k % 15 == 0 && this.still()) break
     }
   };
 
@@ -159,17 +226,27 @@
     return !0
   };
 
-  Sim.prototype.launch = function(u, deg) {
-    var a = deg * Math.PI / 180,
-      pos = { x: START.x - u * Math.cos(a), y: START.y - u * Math.sin(a) },
-      def = new b2BodyDef,
+  Sim.prototype.body = function(x, y, radius, density, group) {
+    var def = new b2BodyDef,
       fd = new b2FixtureDef,
       b;
-    def.type = b2Body.b2_dynamicBody, def.position.Set(pos.x / PX, pos.y / PX);
+    def.type = b2Body.b2_dynamicBody, def.position.Set(x / PX, y / PX);
     b = this.W.CreateBody(def);
-    fd.shape = new b2CircleShape(BIRD_R / PX), fd.density = BIRD_DENSITY, fd.friction = .5, fd.restitution = .4;
+    fd.shape = new b2CircleShape(radius / PX), fd.density = density, fd.friction = .5, fd.restitution = .4, fd.filter.groupIndex = group || 0;
     b.CreateFixture(fd), b.SetUserData({ role: "Bird", full: 250, rem: 250, cool: 0 });
-    b.ApplyImpulse(new b2Vec2((START.x - pos.x) * LAUNCH_POWER, (START.y - pos.y) * LAUNCH_POWER), b.GetWorldCenter());
+    return b
+  };
+
+  // shot = { u: pull, deg: angle, split: steps (split cat), boom: "contact"/"settle" (pumpkin) }
+  Sim.prototype.launch = function(type, shot) {
+    var a = shot.deg * Math.PI / 180,
+      pos = { x: START.x - shot.u * Math.cos(a), y: START.y - shot.u * Math.sin(a) },
+      power = type == "boulder" ? PUMPKIN_WEIGHT : 1,
+      r = type == "boulder" ? 73 * BIRD_SCALE.boulder / 2 : type == "bird_split" ? 18 : BIRD_R,
+      density = type == "bird_split" ? SPLIT_DENSITY : type == "boulder" ? BIRD_DENSITY * power * Math.pow(22 / r, 2) : BIRD_DENSITY,
+      b = this.body(pos.x, pos.y, r, density, type == "bird_split" ? -1 : 0);
+    b.ApplyImpulse(new b2Vec2((START.x - pos.x) * LAUNCH_POWER * power, (START.y - pos.y) * LAUNCH_POWER * power), b.GetWorldCenter());
+    this.active = { body: b, type: type, split: shot.split, boom: shot.boom, at: this.steps };
   };
 
   // ------------------------------------------------------------ aiming
@@ -242,35 +319,44 @@
     return out.join("; ")
   }
 
+  // How a player might use each kind of panther.
+  var WAYS = {
+    bird: [{}],
+    bird_split: [{}, { split: 36 }],
+    boulder: [{ boom: "contact" }, { boom: "settle" }]
+  };
+
   async function checkLevel(n) {
     level_number = n, game.init();
-    var birds = game.birdCount,
+    var types = game.birdTypes.slice(),
       portals = game.portals || [],
       snap = snapshotWorld(b2.world(), !0),
       sim = new Sim(snap, portals),
       all = paths(portals),
       shots = [],
-      total, k, c, best, trial, score, t0 = Date.now();
+      total, k, c, w, best, trial, score, shot, ways, t0 = Date.now();
     sim.run(120, 120), sim.damage = !0; // settle, like the game's first 2 seconds
     total = sim.enemies();
-    for (k = 0; k < birds && sim.enemies() > 0; k++) {
-      snap = snapshotWorld(sim.W), best = null;
+    for (k = 0; k < types.length && sim.enemies() > 0; k++) {
+      snap = snapshotWorld(sim.W), best = null, ways = WAYS[types[k]] || WAYS.bird;
       var list = candidates(sim, all);
-      for (c = 0; c < list.length; c++) {
-        trial = new Sim(snap, portals), trial.damage = !0, trial.launch(list[c].u, list[c].deg), trial.run(90, 420);
-        score = trial.kills * 1e5 + trial.hurt * 1e3;
-        (!best || score > best.score) && (best = { score: score, sim: trial, shot: list[c] });
-        if (!trial.enemies()) break;
-        c % 8 == 7 && await yieldToBrowser()
-      }
-      sim = best.sim, shots.push(best.shot.u + "@" + best.shot.deg + "° kills " + best.sim.kills);
-      sim.kills = 0, sim.hurt = 0;
+      search: for (c = 0; c < list.length; c++)
+        for (w = 0; w < ways.length; w++) {
+          shot = Object.assign({}, list[c], ways[w]);
+          trial = new Sim(snap, portals), trial.damage = !0, trial.launch(types[k], shot), trial.run(90, 420);
+          score = trial.kills * 1e5 + trial.hurt * 1e3;
+          (!best || score > best.score) && (best = { score: score, sim: trial, shot: shot });
+          if (!trial.enemies()) break search;
+          (c * ways.length + w) % 8 == 7 && await yieldToBrowser()
+        }
+      shot = best.shot, shots.push(types[k] + " " + shot.u + "@" + shot.deg + (shot.split ? " split" : "") + (shot.boom ? " boom:" + shot.boom : "") + " kills " + best.sim.kills);
+      sim = best.sim, sim.kills = 0, sim.hurt = 0, sim.active = null;
     }
     return {
       level: Math.floor(n / LEVELS_PER_WORLD) + 1 + "-" + (n % LEVELS_PER_WORLD + 1),
       ok: sim.enemies() == 0,
       enemies: total,
-      birds: birds,
+      birds: types.join(","),
       used: shots.length,
       left: sim.enemies(),
       survivors: survivors(sim),
@@ -288,15 +374,17 @@
       for (var n = from; n <= to; n++) out.push(PP.check.progress = await checkLevel(n)), PP.check.results = out;
       return out
     },
-    // Generated level n (worlds 4-10) failed? Try variants 1..max and return
-    // the first one the bot beats; put it in PP.levels.tune (js/levels/generator.js).
+    // Level n (world 3 on) failed? Try variants 1..max (another line-up, and
+    // for worlds 4-10 also another, slightly easier layout) and return the
+    // first one the bot beats; put it in PP.levels.tune (js/levels/generator.js).
     fix: async function(n, max) {
+      var old = PP.levels.tune[n];
       for (var v = 1; v <= (max || 12); v++) {
         PP.levels.tune[n] = v;
         var r = await checkLevel(n);
         if (r.ok) return { n: n, variant: v, result: r }
       }
-      delete PP.levels.tune[n];
+      old ? PP.levels.tune[n] = old : delete PP.levels.tune[n];
       return { n: n, variant: null }
     }
   };

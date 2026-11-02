@@ -43,7 +43,7 @@ var DAMAGE = window.PP && PP.config && PP.config.damage || {},
 // Big levels. Each world has 15 levels; level_number counts through all of
 // them (world 2 level 1 = level_number 15). Worlds 2 and 3 live in
 // js/levels/, worlds 4-10 are made by js/levels/generator.js.
-// birds: null = a random line-up every try (world 3 on).
+// birds: null = each level has its own line-up (world 3 on, PP.levels.lineup).
 var LEVELS_PER_WORLD = 15,
   WORLDS = [{
     name: "GRAVEYARD",
@@ -2048,7 +2048,7 @@ var b2Body = Box2D.Dynamics.b2Body,
         return y
       };
       for (t in level) level[t].hill || level[t].portal || (world == 0 && (level[t].y += 30, level[t].x += 500), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Dirt && (level[t].type = "dynamic", level[t].density = STONE_DENSITY, level[t].friction = STONE_FRICTION, level[t].userData = new BodyUserData(GameObjectRoll.Dirt, STONE_HEALTH)), this.addObject(level[t]), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Enemy && total_enemies++);
-      // birds: a fixed list, or (world 3 on) a fresh random line-up
+      // birds: the world's list, or (world 3 on) the level's own line-up
       this.birdTypes = WORLDS[world].birds || loaded.birds;
       for (this.birdCount = this.birdTypes.length, this.birdSprite = [], t = 0; t < this.birdCount; t++) this.birdSprite[t] = this.addObject({
         name: this.birdTypes[t],

@@ -3,15 +3,15 @@
  *
  * Hills are solid ground: panthers bounce off them and towers stand on their
  * flat tops. Every level also says how many panthers you get (4 to 6, more
- * for the harder levels); which kinds you get is random every try
- * (js/config.js -> randomBirds). Most structures come from the templates in
+ * for the harder levels); which kinds is picked once per level to suit it
+ * (PP.levels.lineup). Most structures come from the templates in
  * js/levels/generator.js (PP.levels.T).
  *
  * Same rules as js/levels/world2.js: x = centre, b = bottom edge, ground top
  * at y = 87. Enemies must stay between x 940 and 1710.
  *
- * game.js calls PP.levels.world3(i) for the level list and
- * PP.levels.world3Birds(i) for that level's panthers.
+ * game.js gets the level list and panthers through PP.levels.load
+ * (js/levels/generator.js).
  */
 window.PP = window.PP || {};
 PP.levels = PP.levels || {};
@@ -264,25 +264,9 @@ PP.levels = PP.levels || {};
     return l.list
   };
 
-  // A random line-up of n panthers (js/config.js -> randomBirds.weights).
-  PP.levels.randomBirds = function(n) {
-    var w = PP.config.randomBirds.weights,
-      total = 0,
-      out = [],
-      k, r, name;
-    for (name in w) total += w[name];
-    for (k = 0; k < n; k++) {
-      r = Math.random() * total;
-      for (name in w)
-        if ((r -= w[name]) < 0) break;
-      out.push(name)
-    }
-    return out
+  // How many panthers level i gives (which ones: PP.levels.lineup in
+  // js/levels/generator.js picks them once per level).
+  PP.levels.world3Count = function(i) {
+    return LEVELS[i].birds
   };
-
-  // A fresh random line-up of panthers for level i.
-  PP.levels.world3Birds = function(i) {
-    return PP.levels.randomBirds(LEVELS[i].birds)
-  };
-  PP.levels.world3Count = LEVELS.length;
 })();
