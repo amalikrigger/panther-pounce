@@ -26,11 +26,16 @@ var DAMAGE = window.PP && PP.config && PP.config.damage || {},
   STONE_FRICTION = DAMAGE.stoneFriction || .9,
   // how far outside the bird a click still grabs it (screen pixels)
   SLING_GRAB_MARGIN = window.PP && PP.config && PP.config.sling ? PP.config.sling.grabMargin : 18,
-  // enemies must stay between these world x positions (js/config.js -> enemyArea).
+  // enemies pushed outside these world x positions fall off and die (js/config.js -> enemyArea).
   // The right edge defaults to the edge of the screen when the camera is at the slingshot.
   ENEMY_AREA = window.PP && PP.config && PP.config.enemyArea || {},
-  ENEMY_MIN_X = ENEMY_AREA.minX || 900,
-  ENEMY_MAX_X = ENEMY_AREA.maxX || 1000 / (window.PP && PP.config && PP.config.view ? PP.config.view.zoom : 1),
+  ENEMY_AREA_MIN_X = ENEMY_AREA.minX || 900,
+  ENEMY_AREA_MAX_X = ENEMY_AREA.maxX || 1000 / (window.PP && PP.config && PP.config.view ? PP.config.view.zoom : 1),
+  // Each level narrows the area to roomX either side of where its enemies
+  // start (see set_enemy_area), so they can't roll far out of reach.
+  ENEMY_ROOM_X = ENEMY_AREA.roomX == null ? 150 : ENEMY_AREA.roomX,
+  ENEMY_MIN_X = ENEMY_AREA_MIN_X,
+  ENEMY_MAX_X = ENEMY_AREA_MAX_X,
   // things with hurt looks: sprites/<name>_dmg1.png and <name>_dmg2.png
   HURT_LOOKS = {
     wood1: 1,
@@ -103,6 +108,15 @@ var VIEW_ZOOM = window.PP && PP.config && PP.config.view ? PP.config.view.zoom :
 
 function camera_x() {
   return parseFloat(document.getElementById("viewport").style.marginLeft) || 0
+}
+
+// This level's enemy area: ENEMY_ROOM_X either side of where its enemies
+// start, never outside the overall enemy area from js/config.js.
+function set_enemy_area(startXs) {
+  var lo = Math.min.apply(Math, startXs) - ENEMY_ROOM_X,
+    hi = Math.max.apply(Math, startXs) + ENEMY_ROOM_X;
+  ENEMY_MIN_X = ENEMY_AREA_MIN_X, ENEMY_MAX_X = ENEMY_AREA_MAX_X;
+  startXs.length && (lo = Math.max(lo, ENEMY_AREA_MIN_X), hi = Math.min(hi, ENEMY_AREA_MAX_X), lo < hi && (ENEMY_MIN_X = lo, ENEMY_MAX_X = hi))
 }
 
 // World 3 hills as a retro picture (3 px blocks, like sprites/ground.png):
@@ -621,11 +635,10 @@ var b2Body = Box2D.Dynamics.b2Body,
             p = i.GetPosition(),
             g = i.GetAngle();
           if (e && (i.sprite.getPosition().x > 2440 || i.sprite.getPosition().x < 0) && (e.getObjectRoll() != "Bird" && (e.isDead = !0), e.isContacted = !0), e && e.getObjectRoll() == "Enemy") {
-            // enemies can't roll away: keep the whole head inside the enemy area
-            var er = o(i.GetFixtureList().GetShape().GetRadius()),
-              ex = MathH.clamp(o(p.x), ENEMY_MIN_X + er, ENEMY_MAX_X - er),
-              ev = i.GetLinearVelocity();
-            ex != o(p.x) && (i.SetPosition(new b2Vec2(ex / o(1), p.y)), (ex > o(p.x) ? ev.x < 0 : ev.x > 0) && i.SetLinearVelocity(new b2Vec2(-ev.x * .3, ev.y)), p = i.GetPosition())
+            // pushed past the edge of the enemy area: drop through the floor and die
+            if (!i.ppFalling && (o(p.x) < ENEMY_MIN_X || o(p.x) > ENEMY_MAX_X))
+              for (i.ppFalling = !0, i.SetAwake(!0), c = i.GetFixtureList(); c; c = c.GetNext()) v = c.GetFilterData(), v.maskBits = 0, c.SetFilterData(v);
+            i.ppFalling && o(p.y) < 0 && (e.isDead = !0)
           }
           if (e && e.getObjectRoll() == "Enemy" && e.isDead) {
             n.DestroyBody(i), t += 1e3, f++, i.sprite.runAction(cc.FadeOut.create(.5)), i.SetUserData(null), f == total_enemies && this.set_game_over();
@@ -2038,7 +2051,8 @@ var b2Body = Box2D.Dynamics.b2Body,
         } : PP.levels.load(world, level_number % LEVELS_PER_WORLD),
         level = loaded.list,
         hills = [],
-        portals = [];
+        portals = [],
+        enemyXs = [];
       for (t in level) level[t].hill && hills.push(level[t]), level[t].portal && portals.push(level[t]);
       hills.length && (b2.addHills(hills), this.addChild(make_hill_node(hills), 0));
       this.portals = make_portals(portals), portals.length && this.addChild(make_portal_node(this.portals), 3);
@@ -2047,7 +2061,8 @@ var b2Body = Box2D.Dynamics.b2Body,
         for (var k = 0, y = 87; k < hills.length; k++) y = Math.max(y, PP.levels.hillTop(hills[k], x));
         return y
       };
-      for (t in level) level[t].hill || level[t].portal || (world == 0 && (level[t].y += 30, level[t].x += 500), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Dirt && (level[t].type = "dynamic", level[t].density = STONE_DENSITY, level[t].friction = STONE_FRICTION, level[t].userData = new BodyUserData(GameObjectRoll.Dirt, STONE_HEALTH)), this.addObject(level[t]), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Enemy && total_enemies++);
+      for (t in level) level[t].hill || level[t].portal || (world == 0 && (level[t].y += 30, level[t].x += 500), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Dirt && (level[t].type = "dynamic", level[t].density = STONE_DENSITY, level[t].friction = STONE_FRICTION, level[t].userData = new BodyUserData(GameObjectRoll.Dirt, STONE_HEALTH)), this.addObject(level[t]), level[t].userData && level[t].userData.getObjectRoll() == GameObjectRoll.Enemy && (total_enemies++, enemyXs.push(level[t].x)));
+      set_enemy_area(enemyXs);
       // birds: the world's list, or (world 3 on) the level's own line-up
       this.birdTypes = WORLDS[world].birds || loaded.birds;
       for (this.birdCount = this.birdTypes.length, this.birdSprite = [], t = 0; t < this.birdCount; t++) this.birdSprite[t] = this.addObject({

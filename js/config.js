@@ -18,12 +18,17 @@ PP.config = {
     grabMargin: 18
   },
 
-  // Enemies can't roll off the screen: they stay between these game-world x
-  // positions (the slingshot is at 190). null for maxX = the right edge of
-  // the screen when the camera is at the slingshot.
+  // Enemies pushed past the edge of their area fall off and die. The area
+  // is between these game-world x positions (the slingshot is at 190).
+  // null for maxX = the right edge of the screen when the camera is at the
+  // slingshot.
+  // Each level then shrinks that to roomX game pixels either side of where
+  // its enemies start. Smaller = easier: less of a push knocks them off
+  // (keep it above 50 so a wobble doesn't).
   enemyArea: {
     minX: 900,
-    maxX: null
+    maxX: null,
+    roomX: 150
   },
 
   // Breakable blocks. Wood has 2000 health; a hit takes impulse x woodScale.

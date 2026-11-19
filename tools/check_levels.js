@@ -2,7 +2,7 @@
  * Panther Pounce - level checker: proves every level can be beaten.
  *
  * A bot plays each level in its own copy of the physics world (same Box2D
- * settings and damage rules as game.js, plus portals and the enemy fence).
+ * settings and damage rules as game.js, plus portals and the enemy area edges).
  * For every panther it tries aimed shots at each enemy and portal plus a
  * spread of angles and powers, keeps the shot that does the most, and moves
  * on. A level passes if the bot clears it with the level's own line-up of
@@ -134,8 +134,8 @@
       p = b.GetPosition(), x = p.x * PX;
       if ((x > 2440 || x < 0) && d.role != "Bird") d.rem = 0;
       if (d.role == "Enemy") {
-        r = b.GetFixtureList().GetShape().GetRadius() * PX, cx = Math.max(ENEMY_MIN_X + r, Math.min(ENEMY_MAX_X - r, x));
-        if (cx != x) v = b.GetLinearVelocity(), b.SetPosition(new b2Vec2(cx / PX, p.y)), (cx > x ? v.x < 0 : v.x > 0) && b.SetLinearVelocity(new b2Vec2(-v.x * .3, v.y));
+        // pushed past the edge of the enemy area: falls off and dies (game.js simulate)
+        (x < ENEMY_MIN_X || x > ENEMY_MAX_X) && (d.rem = 0);
       }
       if (d.role == "Bird") {
         if (d.cool > 0) d.cool--;
